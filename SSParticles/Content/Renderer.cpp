@@ -123,8 +123,8 @@ void RendererEZ::Render(EZ::CommandList* pCommandList, uint8_t frameIndex,
 	RenderTarget* pOutView, bool needClear)
 {
 	renderSphereDepth(pCommandList, frameIndex);
-	bilateralH(pCommandList);
-	bilateralV(pCommandList);
+	bilateralH(pCommandList, frameIndex);
+	bilateralV(pCommandList, frameIndex);
 	visualize(pCommandList, frameIndex, pOutView, needClear);
 	//environment(pCommandList, frameIndex);
 }
@@ -204,7 +204,7 @@ void RendererEZ::renderSphereDepth(EZ::CommandList* pCommandList, uint8_t frameI
 	pCommandList->Draw(4, m_numParticles[m_particleFrameIdx], 0, 0);
 }
 
-void RendererEZ::bilateralH(EZ::CommandList* pCommandList)
+void RendererEZ::bilateralH(EZ::CommandList* pCommandList, uint8_t frameIndex)
 {
 	// Set pipeline state
 	pCommandList->SetComputeShader(m_shaders[CS_BILATERAL_H]);
@@ -212,6 +212,10 @@ void RendererEZ::bilateralH(EZ::CommandList* pCommandList)
 	// Set UAV
 	const auto uav = EZ::GetUAV(m_scratch.get());
 	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav);
+
+	// Set CBV
+	const auto cbvPerFrame = EZ::GetCBV(m_cbPerFrame.get(), frameIndex);
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::CBV, 0, 1, &cbvPerFrame);
 
 	// Set SRV
 	const auto srv = EZ::GetSRV(m_depth.get());
@@ -221,7 +225,7 @@ void RendererEZ::bilateralH(EZ::CommandList* pCommandList)
 	pCommandList->Dispatch(XUSG_DIV_UP(m_viewport.x, 8), XUSG_DIV_UP(m_viewport.y, 8), 1);
 }
 
-void RendererEZ::bilateralV(EZ::CommandList* pCommandList)
+void RendererEZ::bilateralV(EZ::CommandList* pCommandList, uint8_t frameIndex)
 {
 	// Set pipeline state
 	pCommandList->SetComputeShader(m_shaders[CS_BILATERAL_V]);
@@ -229,6 +233,10 @@ void RendererEZ::bilateralV(EZ::CommandList* pCommandList)
 	// Set UAV
 	const auto uav = EZ::GetUAV(m_filtered.get());
 	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav);
+
+	// Set CBV
+	const auto cbvPerFrame = EZ::GetCBV(m_cbPerFrame.get(), frameIndex);
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::CBV, 0, 1, &cbvPerFrame);
 
 	// Set SRV
 	const auto srv = EZ::GetSRV(m_scratch.get());

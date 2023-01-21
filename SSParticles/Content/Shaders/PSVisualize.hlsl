@@ -25,7 +25,7 @@ cbuffer cbPerFrame
 //--------------------------------------------------------------------------------------
 // Texture
 //--------------------------------------------------------------------------------------
-Texture2D<float> g_depth;
+Texture2D<float> g_txDepth;
 
 float3 GetViewPos(float2 uv, float depth)
 {
@@ -41,11 +41,11 @@ float3 GetViewPos(float2 uv, float depth)
 float4 main(PSIn input) : SV_TARGET
 {
 	float2 texSize;
-	g_depth.GetDimensions(texSize.x, texSize.y);
+g_txDepth.GetDimensions(texSize.x, texSize.y);
 
 	// Read depth from texture
 	const uint2 idx = input.Pos.xy;
-	float depth = g_depth[idx];
+	float depth = g_txDepth[idx];
 	if (depth >= 1.0) discard;
 
 	// calculate eye-space position from depth
@@ -53,15 +53,15 @@ float4 main(PSIn input) : SV_TARGET
 	const float2 texel = 1.0 / texSize;
 
 	// Calculate differences
-	depth = g_depth[uint2(idx.x + 1, idx.y)];
+	depth = g_txDepth[uint2(idx.x + 1, idx.y)];
 	float3 ddx = GetViewPos(float2(input.UV.x + texel.x, input.UV.y), depth) - pos;
-	depth = g_depth[uint2(idx.x - 1, idx.y)];
+	depth = g_txDepth[uint2(idx.x - 1, idx.y)];
 	const float3 ddx2 = pos - GetViewPos(float2(input.UV.x - texel.x, input.UV.y), depth);
 	ddx = abs(ddx.z) > abs(ddx2.z) ? ddx2 : ddx;
 
-	depth = g_depth[uint2(idx.x, idx.y + 1)];
+	depth = g_txDepth[uint2(idx.x, idx.y + 1)];
 	float3 ddy = GetViewPos(float2(input.UV.x, input.UV.y + texel.y), depth) - pos;
-	depth = g_depth[uint2(idx.x, idx.y - 1)];
+	depth = g_txDepth[uint2(idx.x, idx.y - 1)];
 	const float3 ddy2 = pos - GetViewPos(float2(input.UV.x, input.UV.y - texel.y), depth);
 	ddy = abs(ddy2.z) < abs(ddy.z) ? ddy2 : ddy;
 

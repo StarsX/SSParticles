@@ -47,8 +47,8 @@ protected:
 	bool createShaders();
 
 	void renderSphereDepth(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
-	void bilateralH(XUSG::EZ::CommandList* pCommandList);
-	void bilateralV(XUSG::EZ::CommandList* pCommandList);
+	void bilateralH(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
+	void bilateralV(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
 	void visualize(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex,
 		XUSG::RenderTarget* pOutView, bool needClear);
 	void environment(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);

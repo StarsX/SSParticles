@@ -5,6 +5,17 @@
 #include "BlurCommon.hlsli"
 
 //--------------------------------------------------------------------------------------
+// Constant buffer
+//--------------------------------------------------------------------------------------
+cbuffer cbPerFrame
+{
+	matrix	g_worldView;
+	matrix	g_proj;
+	matrix	g_viewI;
+	matrix	g_projI;
+};
+
+//--------------------------------------------------------------------------------------
 // Textures
 //--------------------------------------------------------------------------------------
 RWTexture2D<float3> g_rwDepth;
@@ -21,15 +32,17 @@ void main(uint2 DTid : SV_DispatchThreadID)
 		return;
 	}
 
+	const float radius = GetBlurRadius(g_txDepth, depth, g_proj, g_projI);
+
 	float2 sum = 0.0;
-	for (int i = -RADIUS; i <= RADIUS; ++i)
+	for (int i = -radius; i <= radius; ++i)
 	{
 		const uint2 idx = uint2(DTid.x, (int)DTid.y + i);
 
 		const float z = g_txDepth[idx];
 
 		// spatial domain
-		float w = Gaussian(i, RADIUS);
+		float w = Gaussian(i, radius);
 
 		// range domain
 		//w *= z < 1.0;

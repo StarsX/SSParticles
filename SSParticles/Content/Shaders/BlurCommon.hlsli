@@ -29,3 +29,14 @@ float DepthWeight(float depthC, float depth, float sigma)
 {
 	return exp(-abs(depthC - depth) * depthC * sigma);
 }
+
+int GetBlurRadius(Texture2D<float> txDepth, float depth, matrix proj, matrix projI)
+{
+	float2 texSize;
+	txDepth.GetDimensions(texSize.x, texSize.y);
+	
+	float w = projI[2].z * depth + projI[3].z;
+	w /= projI[2].w * depth + projI[3].w;
+
+	return 0.025 * proj[1].y / w * texSize.y;
+}
