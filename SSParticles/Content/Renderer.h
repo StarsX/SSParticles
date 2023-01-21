@@ -33,9 +33,13 @@ protected:
 	{
 		VS_PARTICLE,
 		VS_SCREEN_QUAD,
+
 		PS_SPHERE,
 		PS_VISUALIZE,
 		PS_ENVIRONMENT,
+
+		CS_BILATERAL_H,
+		CS_BILATERAL_V,
 
 		NUM_SHADER
 	};
@@ -43,6 +47,8 @@ protected:
 	bool createShaders();
 
 	void renderSphereDepth(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
+	void bilateralH(XUSG::EZ::CommandList* pCommandList);
+	void bilateralV(XUSG::EZ::CommandList* pCommandList);
 	void visualize(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex,
 		XUSG::RenderTarget* pOutView, bool needClear);
 	void environment(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);

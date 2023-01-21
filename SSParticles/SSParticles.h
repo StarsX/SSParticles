@@ -13,7 +13,7 @@
 
 #include "DXFramework.h"
 #include "StepTimer.h"
-#include "RendererEZ.h"
+#include "Renderer.h"
 
 using namespace DirectX;
 

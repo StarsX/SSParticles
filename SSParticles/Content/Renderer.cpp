@@ -3,7 +3,7 @@
 //--------------------------------------------------------------------------------------
 
 #include "DXFrameworkHelper.h"
-#include "RendererEZ.h"
+#include "Renderer.h"
 #include "ParticleBin.h"
 
 using namespace std;
@@ -123,6 +123,8 @@ void RendererEZ::Render(EZ::CommandList* pCommandList, uint8_t frameIndex,
 	RenderTarget* pOutView, bool needClear)
 {
 	renderSphereDepth(pCommandList, frameIndex);
+	bilateralH(pCommandList);
+	bilateralV(pCommandList);
 	visualize(pCommandList, frameIndex, pOutView, needClear);
 	//environment(pCommandList, frameIndex);
 }
@@ -157,6 +159,12 @@ bool RendererEZ::createShaders()
 
 	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::PS, psIndex, L"PSEnvironment.cso"), false);
 	m_shaders[PS_ENVIRONMENT] = m_shaderLib->GetShader(Shader::Stage::PS, psIndex++);
+
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, L"CSBilateralH.cso"), false);
+	m_shaders[CS_BILATERAL_H] = m_shaderLib->GetShader(Shader::Stage::CS, csIndex++);
+
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, L"CSBilateralV.cso"), false);
+	m_shaders[CS_BILATERAL_V] = m_shaderLib->GetShader(Shader::Stage::CS, csIndex++);
 
 	return true;
 }
@@ -196,6 +204,40 @@ void RendererEZ::renderSphereDepth(EZ::CommandList* pCommandList, uint8_t frameI
 	pCommandList->Draw(4, m_numParticles[m_particleFrameIdx], 0, 0);
 }
 
+void RendererEZ::bilateralH(EZ::CommandList* pCommandList)
+{
+	// Set pipeline state
+	pCommandList->SetComputeShader(m_shaders[CS_BILATERAL_H]);
+
+	// Set UAV
+	const auto uav = EZ::GetUAV(m_scratch.get());
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav);
+
+	// Set SRV
+	const auto srv = EZ::GetSRV(m_depth.get());
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, 1, &srv);
+
+	// Dispatch grid
+	pCommandList->Dispatch(XUSG_DIV_UP(m_viewport.x, 8), XUSG_DIV_UP(m_viewport.y, 8), 1);
+}
+
+void RendererEZ::bilateralV(EZ::CommandList* pCommandList)
+{
+	// Set pipeline state
+	pCommandList->SetComputeShader(m_shaders[CS_BILATERAL_V]);
+
+	// Set UAV
+	const auto uav = EZ::GetUAV(m_filtered.get());
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav);
+
+	// Set SRV
+	const auto srv = EZ::GetSRV(m_scratch.get());
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, 1, &srv);
+
+	// Dispatch grid
+	pCommandList->Dispatch(XUSG_DIV_UP(m_viewport.x, 8), XUSG_DIV_UP(m_viewport.y, 8), 1);
+}
+
 void RendererEZ::visualize(EZ::CommandList* pCommandList, uint8_t frameIndex,
 	RenderTarget* pOutView, bool needClear)
 {
@@ -221,12 +263,12 @@ void RendererEZ::visualize(EZ::CommandList* pCommandList, uint8_t frameIndex,
 	// Set IA
 	pCommandList->IASetPrimitiveTopology(PrimitiveTopology::TRIANGLESTRIP);
 
-	// Set CBVs
+	// Set CBV
 	const auto cbvPerFrame = EZ::GetCBV(m_cbPerFrame.get(), frameIndex);
 	pCommandList->SetResources(Shader::Stage::PS, DescriptorType::CBV, 0, 1, &cbvPerFrame);
 
 	// Set SRV
-	const auto srv = EZ::GetSRV(m_depth.get());
+	const auto srv = EZ::GetSRV(m_filtered.get());
 	pCommandList->SetResources(Shader::Stage::PS, DescriptorType::SRV, 0, 1, &srv);
 
 	// Set sampler

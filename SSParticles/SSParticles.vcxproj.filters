@@ -63,7 +63,7 @@
     <ClInclude Include="XUSG\Helper\XUSG-EZ.h">
       <Filter>XUSG</Filter>
     </ClInclude>
-    <ClInclude Include="Content\RendererEZ.h">
+    <ClInclude Include="Content\Renderer.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="Common\d3dcommon.h">
@@ -98,7 +98,7 @@
     <ClCompile Include="SSParticles.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Content\RendererEZ.cpp">
+    <ClCompile Include="Content\Renderer.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Content\ParticleData.cpp">
@@ -124,5 +124,16 @@
     <FxCompile Include="Content\Shaders\PSSphere.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Content\Shaders\CSBilateralH.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\CSBilateralV.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Content\Shaders\BlurCommon.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
