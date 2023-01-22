@@ -18,17 +18,17 @@ struct CBPerFrame
 	XMFLOAT4X4	ProjI;
 };
 
-RendererEZ::RendererEZ() :
+Renderer::Renderer() :
 	m_frameParity(0)
 {
 	m_shaderLib = ShaderLib::MakeUnique();
 }
 
-RendererEZ::~RendererEZ()
+Renderer::~Renderer()
 {
 }
 
-bool RendererEZ::Init(CommandList* pCommandList, vector<Resource::uptr>& uploaders,
+bool Renderer::Init(CommandList* pCommandList, vector<Resource::uptr>& uploaders,
 	const char* fileNamePrefix, int numFrames)
 {
 	const auto pDevice = pCommandList->GetDevice();
@@ -65,7 +65,7 @@ bool RendererEZ::Init(CommandList* pCommandList, vector<Resource::uptr>& uploade
 		SAFE_FREE(frameData.pParticles);
 	}
 
-	// Create constant buffers
+	// Create constant buffer
 	m_cbPerFrame = ConstantBuffer::MakeUnique();
 	XUSG_N_RETURN(m_cbPerFrame->Create(pDevice, sizeof(CBPerFrame[FrameCount]), FrameCount,
 		nullptr, MemoryType::UPLOAD, MemoryFlag::NONE, L"CBPerFrame"), false);
@@ -76,32 +76,44 @@ bool RendererEZ::Init(CommandList* pCommandList, vector<Resource::uptr>& uploade
 	return true;
 }
 
-bool RendererEZ::SetViewport(const Device* pDevice, uint32_t width, uint32_t height)
+bool Renderer::SetViewport(const Device* pDevice, uint32_t width, uint32_t height)
 {
 	m_viewport = XMUINT2(width, height);
 
+	// Create resources and pipelines
+	m_numMips = CalculateMipLevels(m_viewport.x, m_viewport.y);
+	assert(m_numMips >= 2);
+
 	// Create output views
-	m_scratch = Texture::MakeUnique();
-	XUSG_N_RETURN(m_scratch->Create(pDevice, width, height, Format::R32_FLOAT, 1,
-		ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, 1, false, MemoryFlag::NONE, L"Scratch"), false);
-
-	m_filtered = Texture::MakeUnique();
-	XUSG_N_RETURN(m_filtered->Create(pDevice, width, height, Format::R32_FLOAT, 1,
-		ResourceFlag::ALLOW_UNORDERED_ACCESS, 1, 1, false, MemoryFlag::NONE, L"FilteredDepth"), false);
-
 	m_depth = DepthStencil::MakeUnique();
 	XUSG_N_RETURN(m_depth->Create(pDevice, width, height, Format::D32_FLOAT,
 		ResourceFlag::NONE, 1, 1, 1, 1.0f, 0, false, MemoryFlag::NONE, L"Depth"), false);
 
+	m_scratch = Texture::MakeUnique();
+	XUSG_N_RETURN(m_scratch->Create(pDevice, width, height, Format::R32_FLOAT, 1,
+		ResourceFlag::ALLOW_UNORDERED_ACCESS, m_numMips, 1, false, MemoryFlag::NONE, L"Scratch"), false);
+
+	m_filtered = Texture::MakeUnique();
+	XUSG_N_RETURN(m_filtered->Create(pDevice, width, height, Format::R32_FLOAT, 1,
+		ResourceFlag::ALLOW_UNORDERED_ACCESS, m_numMips, 1, false, MemoryFlag::NONE, L"FilteredDepth"), false);
+
+	// Create constant buffers
+	const uint8_t numPasses = m_numMips - 1;
+	m_cbPerPass = ConstantBuffer::MakeUnique();
+	XUSG_N_RETURN(m_cbPerPass->Create(pDevice, sizeof(uint32_t) * numPasses,
+		numPasses, nullptr, MemoryType::UPLOAD, MemoryFlag::NONE, L"CBPerPass"), false);
+	for (uint8_t i = 0; i < numPasses; ++i)
+		*static_cast<uint32_t*>(m_cbPerPass->Map(i)) = numPasses - (i + 1);
+
 	return true;
 }
 
-void RendererEZ::SetLightProbe(const Texture::sptr& radiance)
+void Renderer::SetLightProbe(const Texture::sptr& radiance)
 {
 	m_radiance = radiance;
 }
 
-void RendererEZ::UpdateFrame(double time, uint8_t frameIndex,
+void Renderer::UpdateFrame(double time, uint8_t frameIndex,
 	CXMVECTOR eyePt, CXMMATRIX view, CXMMATRIX proj)
 {
 	{
@@ -119,27 +131,33 @@ void RendererEZ::UpdateFrame(double time, uint8_t frameIndex,
 	m_frameParity = !m_frameParity;
 }
 
-void RendererEZ::Render(EZ::CommandList* pCommandList, uint8_t frameIndex,
+void Renderer::Render(EZ::CommandList* pCommandList, uint8_t frameIndex,
 	RenderTarget* pOutView, bool needClear)
 {
 	renderSphereDepth(pCommandList, frameIndex);
+#if 1
+	pCommandList->Blit(m_scratch.get(), m_depth.get(), POINT_CLAMP);
+	bilateralDown(pCommandList);
+	bilateralUp(pCommandList, frameIndex);
+#else
 	bilateralH(pCommandList, frameIndex);
 	bilateralV(pCommandList, frameIndex);
+#endif
 	visualize(pCommandList, frameIndex, pOutView, needClear);
 	//environment(pCommandList, frameIndex);
 }
 
-uint32_t RendererEZ::GetFrameIndex() const
+uint32_t Renderer::GetFrameIndex() const
 {
 	return m_particleFrameIdx;
 }
 
-uint32_t RendererEZ::GetParticleCount() const
+uint32_t Renderer::GetParticleCount() const
 {
 	return m_numParticles[m_particleFrameIdx];
 }
 
-bool RendererEZ::createShaders()
+bool Renderer::createShaders()
 {
 	auto vsIndex = 0u;
 	auto psIndex = 0u;
@@ -166,10 +184,16 @@ bool RendererEZ::createShaders()
 	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, L"CSBilateralV.cso"), false);
 	m_shaders[CS_BILATERAL_V] = m_shaderLib->GetShader(Shader::Stage::CS, csIndex++);
 
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, L"CSBilateralDown.cso"), false);
+	m_shaders[CS_BILATERAL_DOWN] = m_shaderLib->GetShader(Shader::Stage::CS, csIndex++);
+
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, L"CSBilateralUp.cso"), false);
+	m_shaders[CS_BILATERAL_UP] = m_shaderLib->GetShader(Shader::Stage::CS, csIndex++);
+
 	return true;
 }
 
-void RendererEZ::renderSphereDepth(EZ::CommandList* pCommandList, uint8_t frameIndex)
+void Renderer::renderSphereDepth(EZ::CommandList* pCommandList, uint8_t frameIndex)
 {
 	// Set pipeline state
 	pCommandList->SetGraphicsShader(Shader::Stage::VS, m_shaders[VS_PARTICLE]);
@@ -193,9 +217,9 @@ void RendererEZ::renderSphereDepth(EZ::CommandList* pCommandList, uint8_t frameI
 	pCommandList->IASetPrimitiveTopology(PrimitiveTopology::TRIANGLESTRIP);
 
 	// Set CBVs
-	const auto cbvPerFrame = EZ::GetCBV(m_cbPerFrame.get(), frameIndex);
-	pCommandList->SetResources(Shader::Stage::VS, DescriptorType::CBV, 0, 1, &cbvPerFrame);
-	pCommandList->SetResources(Shader::Stage::PS, DescriptorType::CBV, 0, 1, &cbvPerFrame);
+	const auto cbv = EZ::GetCBV(m_cbPerFrame.get(), frameIndex);
+	pCommandList->SetResources(Shader::Stage::VS, DescriptorType::CBV, 0, 1, &cbv);
+	pCommandList->SetResources(Shader::Stage::PS, DescriptorType::CBV, 0, 1, &cbv);
 
 	// Set SRV
 	const auto srv = EZ::GetSRV(m_particleFrames[m_particleFrameIdx].get());
@@ -204,7 +228,7 @@ void RendererEZ::renderSphereDepth(EZ::CommandList* pCommandList, uint8_t frameI
 	pCommandList->Draw(4, m_numParticles[m_particleFrameIdx], 0, 0);
 }
 
-void RendererEZ::bilateralH(EZ::CommandList* pCommandList, uint8_t frameIndex)
+void Renderer::bilateralH(EZ::CommandList* pCommandList, uint8_t frameIndex)
 {
 	// Set pipeline state
 	pCommandList->SetComputeShader(m_shaders[CS_BILATERAL_H]);
@@ -214,8 +238,8 @@ void RendererEZ::bilateralH(EZ::CommandList* pCommandList, uint8_t frameIndex)
 	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav);
 
 	// Set CBV
-	const auto cbvPerFrame = EZ::GetCBV(m_cbPerFrame.get(), frameIndex);
-	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::CBV, 0, 1, &cbvPerFrame);
+	const auto cbv = EZ::GetCBV(m_cbPerFrame.get(), frameIndex);
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::CBV, 0, 1, &cbv);
 
 	// Set SRV
 	const auto srv = EZ::GetSRV(m_depth.get());
@@ -225,7 +249,7 @@ void RendererEZ::bilateralH(EZ::CommandList* pCommandList, uint8_t frameIndex)
 	pCommandList->Dispatch(XUSG_DIV_UP(m_viewport.x, 8), XUSG_DIV_UP(m_viewport.y, 8), 1);
 }
 
-void RendererEZ::bilateralV(EZ::CommandList* pCommandList, uint8_t frameIndex)
+void Renderer::bilateralV(EZ::CommandList* pCommandList, uint8_t frameIndex)
 {
 	// Set pipeline state
 	pCommandList->SetComputeShader(m_shaders[CS_BILATERAL_V]);
@@ -235,8 +259,8 @@ void RendererEZ::bilateralV(EZ::CommandList* pCommandList, uint8_t frameIndex)
 	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav);
 
 	// Set CBV
-	const auto cbvPerFrame = EZ::GetCBV(m_cbPerFrame.get(), frameIndex);
-	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::CBV, 0, 1, &cbvPerFrame);
+	const auto cbv = EZ::GetCBV(m_cbPerFrame.get(), frameIndex);
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::CBV, 0, 1, &cbv);
 
 	// Set SRV
 	const auto srv = EZ::GetSRV(m_scratch.get());
@@ -246,7 +270,78 @@ void RendererEZ::bilateralV(EZ::CommandList* pCommandList, uint8_t frameIndex)
 	pCommandList->Dispatch(XUSG_DIV_UP(m_viewport.x, 8), XUSG_DIV_UP(m_viewport.y, 8), 1);
 }
 
-void RendererEZ::visualize(EZ::CommandList* pCommandList, uint8_t frameIndex,
+void Renderer::bilateralDown(EZ::CommandList* pCommandList)
+{
+	// Generate mipmaps
+	// Set pipeline state
+	pCommandList->SetComputeShader(m_shaders[CS_BILATERAL_DOWN]);
+
+	// Set sampler
+	const auto sampler = POINT_CLAMP;
+	pCommandList->SetSamplerStates(Shader::Stage::CS, 0, 1, &sampler);
+
+	for (uint8_t i = 1; i < m_numMips; ++i)
+	{
+		// Set UAV
+		const auto uav = EZ::GetUAV(m_scratch.get(), i);
+		pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav);
+
+		// Set SRV
+		const auto srv = EZ::GetSRVLevel(m_scratch.get(), i - 1);
+		pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, 1, &srv);
+
+		// Dispatch grid
+		const auto threadsX = (max)(m_viewport.x >> i, 1u);
+		const auto threadsY = (max)(m_viewport.y >> i, 1u);
+		pCommandList->Dispatch(XUSG_DIV_UP(threadsX, 8), XUSG_DIV_UP(threadsY, 8), 1);
+	}
+}
+
+void Renderer::bilateralUp(EZ::CommandList* pCommandList, uint8_t frameIndex)
+{
+	// Up sampling
+	// Set pipeline state
+	pCommandList->SetComputeShader(m_shaders[CS_BILATERAL_UP]);
+
+	// Set sampler
+	const auto sampler = LINEAR_CLAMP;
+	pCommandList->SetSamplerStates(Shader::Stage::CS, 0, 1, &sampler);
+
+	const uint8_t numPasses = m_numMips - 1;
+	for (uint8_t i = 0; i < numPasses; ++i)
+	{
+		const auto c = numPasses - i;
+		const auto level = c - 1;
+
+		// Set UAV
+		const auto uav = EZ::GetUAV(m_filtered.get(), level);
+		pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav);
+
+		// Set CBV
+		const EZ::ResourceView cbvs[] =
+		{
+			EZ::GetCBV(m_cbPerFrame.get(), frameIndex),
+			EZ::GetCBV(m_cbPerPass.get(), i)
+		};
+		pCommandList->SetResources(Shader::Stage::CS, DescriptorType::CBV, 0, static_cast<uint32_t>(size(cbvs)), cbvs);
+
+		// Set SRVs
+		const EZ::ResourceView srvs[] =
+		{
+			EZ::GetSRVLevel(i > 0 ? m_filtered.get() : m_scratch.get(), c),
+			EZ::GetSRVLevel(m_scratch.get(), level),
+			EZ::GetSRVLevel(m_scratch.get(), 0)
+		};
+		pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, static_cast<uint32_t>(size(srvs)), srvs);
+
+		// Dispatch grid
+		const auto threadsX = (max)(m_viewport.x >> level, 1u);
+		const auto threadsY = (max)(m_viewport.y >> level, 1u);
+		pCommandList->Dispatch(XUSG_DIV_UP(threadsX, 8), XUSG_DIV_UP(threadsY, 8), 1);
+	}
+}
+
+void Renderer::visualize(EZ::CommandList* pCommandList, uint8_t frameIndex,
 	RenderTarget* pOutView, bool needClear)
 {
 	// Set pipeline state
@@ -286,7 +381,7 @@ void RendererEZ::visualize(EZ::CommandList* pCommandList, uint8_t frameIndex,
 	pCommandList->Draw(3, 1, 0, 0);
 }
 
-void RendererEZ::environment(EZ::CommandList* pCommandList, uint8_t frameIndex)
+void Renderer::environment(EZ::CommandList* pCommandList, uint8_t frameIndex)
 {
 	//// Set pipeline state
 	//pCommandList->SetGraphicsShader(Shader::Stage::VS, m_shaders[VS_SCREEN_QUAD]);

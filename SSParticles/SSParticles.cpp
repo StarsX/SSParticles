@@ -124,12 +124,12 @@ void SSParticles::LoadAssets()
 		m_commandAllocators[m_frameIndex].get(), nullptr), ThrowIfFailed(E_FAIL));
 
 	m_commandListEZ = EZ::CommandList::MakeUnique();
-	XUSG_N_RETURN(m_commandListEZ->Create(pCommandList, 1, 1024),
+	XUSG_N_RETURN(m_commandListEZ->Create(pCommandList, 2, 1024),
 		ThrowIfFailed(E_FAIL));
 
 	vector<Resource::uptr> uploaders(0);	
 	{
-		m_renderer = make_unique<RendererEZ>();
+		m_renderer = make_unique<Renderer>();
 		XUSG_N_RETURN(m_renderer->Init(pCommandList, uploaders, m_particleFileNamePrefix.c_str(),
 			m_numFrames), ThrowIfFailed(E_FAIL));
 	}

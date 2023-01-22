@@ -6,6 +6,11 @@
 #define PI 3.141592654
 #define SIGMA_Z 128.0
 
+//--------------------------------------------------------------------------------------
+// Texture sampler
+//--------------------------------------------------------------------------------------
+SamplerState g_sampler;
+
 float GaussianSigmaFromRadius(int radius)
 {
 	return (radius + 1) / 3.0;

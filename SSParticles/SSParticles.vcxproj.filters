@@ -28,6 +28,9 @@
     <Filter Include="Shaders">
       <UniqueIdentifier>{c6cbf730-3a04-4e8f-9fa2-94d7d2145f9b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\MipBlur">
+      <UniqueIdentifier>{ab6477e2-08d4-4348-822b-c33c4d699f13}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Common\d3dx12.h">
@@ -129,6 +132,12 @@
     </FxCompile>
     <FxCompile Include="Content\Shaders\CSBilateralV.hlsl">
       <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\CSBilateralDown.hlsl">
+      <Filter>Shaders\MipBlur</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\CSBilateralUp.hlsl">
+      <Filter>Shaders\MipBlur</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>

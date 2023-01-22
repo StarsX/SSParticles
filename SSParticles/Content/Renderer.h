@@ -7,11 +7,11 @@
 #include "Helper/XUSG-EZ.h"
 #include "ParticleData.h"
 
-class RendererEZ
+class Renderer
 {
 public:
-	RendererEZ();
-	virtual ~RendererEZ();
+	Renderer();
+	virtual ~Renderer();
 
 	bool Init(XUSG::CommandList* pCommandList, std::vector<XUSG::Resource::uptr>& uploaders,
 		const char* fileNamePrefix, int numFrames);
@@ -40,6 +40,8 @@ protected:
 
 		CS_BILATERAL_H,
 		CS_BILATERAL_V,
+		CS_BILATERAL_DOWN,
+		CS_BILATERAL_UP,
 
 		NUM_SHADER
 	};
@@ -49,6 +51,8 @@ protected:
 	void renderSphereDepth(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
 	void bilateralH(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
 	void bilateralV(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
+	void bilateralDown(XUSG::EZ::CommandList* pCommandList);
+	void bilateralUp(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
 	void visualize(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex,
 		XUSG::RenderTarget* pOutView, bool needClear);
 	void environment(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
@@ -67,6 +71,7 @@ protected:
 	XUSG::DepthStencil::uptr	m_depth;
 
 	XUSG::ConstantBuffer::uptr	m_cbPerFrame;
+	XUSG::ConstantBuffer::uptr	m_cbPerPass;
 
 	XUSG::ShaderLib::uptr		m_shaderLib;
 	XUSG::Blob m_shaders[NUM_SHADER];
@@ -74,5 +79,6 @@ protected:
 	std::vector<uint32_t>		m_numParticles;
 	uint32_t					m_numFrames;
 	uint32_t					m_particleFrameIdx;
+	uint8_t						m_numMips;
 	char m_fps;
 };

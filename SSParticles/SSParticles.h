@@ -46,7 +46,7 @@ public:
 	virtual void ParseCommandLineArgs(wchar_t* argv[], int argc);
 
 private:
-	static const uint8_t FrameCount = RendererEZ::FrameCount;
+	static const uint8_t FrameCount = Renderer::FrameCount;
 
 	XUSG::com_ptr<IDXGIFactory5>	m_factory;
 
@@ -60,7 +60,7 @@ private:
 	XUSG::EZ::CommandList::uptr	m_commandListEZ;
 
 	// App resources.
-	std::unique_ptr<RendererEZ>	m_renderer;
+	std::unique_ptr<Renderer>	m_renderer;
 	//XUSG::DepthStencil::uptr	m_depth;
 	XMFLOAT4X4	m_proj;
 	XMFLOAT4X4	m_view;
