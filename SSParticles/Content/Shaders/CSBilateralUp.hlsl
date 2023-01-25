@@ -183,6 +183,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 		// Calculate edge-stopping function
 		float w = depth < 1.0;
 		w *= DepthWeight(depthC, depth, SIGMA_Z);
+		w = pow(w, 0.333);
 
 		// 3x3 bilateral filter
 		src += depth * w;
@@ -203,7 +204,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 		// Calculate edge-stopping function
 		float we = depth < 1.0;
 		we *= DepthWeight(depthC, depth, SIGMA_Z);
-		we = sqrt(sqrt(we));
+		we = pow(we, 0.333);
 
 		// Apply the convolution weight with edge-stopping function
 		const float coarser = lerp(src, depth, we);

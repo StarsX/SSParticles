@@ -93,7 +93,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	}
 
 	// Fallback for all-zero weights
-	dst = ws > 0.0 ? dst / ws : src0;
+	dst = ws > 0.0 ? dst / ws : 1.0;
 
 	g_rwDepth[DTid] = dst;
 }
