@@ -32,7 +32,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 		return;
 	}
 
-	const float radius = GetBlurRadius(g_txDepth, depth, g_proj, g_projI);
+	const int radius = GetBlurRadius(g_txDepth, depth, g_proj, g_projI);
 
 	float2 sum = 0.0;
 	for (int i = -radius; i <= radius; ++i)
@@ -45,7 +45,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 		float w = Gaussian(i, radius);
 
 		// range domain
-		//w *= z < 1.0;
+		w *= z < 1.0;
 		w *= DepthWeight(depth, z, SIGMA_Z);
 
 		sum.x += z * w;

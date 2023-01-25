@@ -10,6 +10,14 @@
 class Renderer
 {
 public:
+	enum FilterMethod : uint8_t
+	{
+		BILATERAL_SEP,
+		BILATERAL_MIP,
+
+		NUM_FILTER_METHOD
+	};
+
 	Renderer();
 	virtual ~Renderer();
 
@@ -21,7 +29,7 @@ public:
 	void UpdateFrame(double time, uint8_t frameIndex, DirectX::CXMVECTOR eyePt,
 		DirectX::CXMMATRIX viewProj, DirectX::CXMMATRIX proj);
 	void Render(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex,
-		XUSG::RenderTarget* pOutView, bool needClear = false);
+		XUSG::RenderTarget* pOutView, FilterMethod method, bool needClear = false);
 
 	uint32_t GetFrameIndex() const;
 	uint32_t GetParticleCount() const;

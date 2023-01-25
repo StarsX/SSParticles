@@ -132,17 +132,23 @@ void Renderer::UpdateFrame(double time, uint8_t frameIndex,
 }
 
 void Renderer::Render(EZ::CommandList* pCommandList, uint8_t frameIndex,
-	RenderTarget* pOutView, bool needClear)
+	RenderTarget* pOutView, FilterMethod method, bool needClear)
 {
 	renderSphereDepth(pCommandList, frameIndex);
-#if 1
-	pCommandList->Blit(m_scratch.get(), m_depth.get(), POINT_CLAMP);
-	bilateralDown(pCommandList);
-	bilateralUp(pCommandList, frameIndex);
-#else
-	bilateralH(pCommandList, frameIndex);
-	bilateralV(pCommandList, frameIndex);
-#endif
+
+	switch (method)
+	{
+	case BILATERAL_MIP:
+		pCommandList->Blit(m_scratch.get(), m_depth.get(), POINT_CLAMP);
+		bilateralDown(pCommandList);
+		bilateralUp(pCommandList, frameIndex);
+		break;
+	case BILATERAL_SEP:
+		bilateralH(pCommandList, frameIndex);
+		bilateralV(pCommandList, frameIndex);
+		break;
+	}
+
 	visualize(pCommandList, frameIndex, pOutView, needClear);
 	//environment(pCommandList, frameIndex);
 }

@@ -25,6 +25,7 @@ SSParticles::SSParticles(uint32_t width, uint32_t height, wstring name) :
 	m_frameIndex(0),
 	m_showFPS(true),
 	m_isPaused(false),
+	m_filterMethod(Renderer::BILATERAL_MIP),
 	m_tracking(false),
 	m_particleFileNamePrefix(""),
 	m_envFileName(L"Assets/rnl_cross.dds"),
@@ -318,6 +319,9 @@ void SSParticles::OnKeyUp(uint8_t key)
 	case VK_F1:
 		m_showFPS = !m_showFPS;
 		break;
+	case 'F':
+		m_filterMethod = static_cast<Renderer::FilterMethod>((m_filterMethod + 1) % Renderer::NUM_FILTER_METHOD);
+		break;
 	}
 }
 
@@ -424,7 +428,7 @@ void SSParticles::PopulateCommandList()
 
 	// Record commands.
 	const auto renderTarget = m_renderTargets[m_frameIndex].get();
-	m_renderer->Render(pCommandList, m_frameIndex, renderTarget, true);
+	m_renderer->Render(pCommandList, m_frameIndex, renderTarget, m_filterMethod, true);
 
 	XUSG_N_RETURN(pCommandList->Close(renderTarget), ThrowIfFailed(E_FAIL));
 }
@@ -488,6 +492,17 @@ double SSParticles::CalculateFrameStats(float* pTimeStep)
 		else windowText << L"[F1]";
 		windowText << L"    Frame: " << m_renderer->GetFrameIndex();
 		windowText << L"    Particles: " << m_renderer->GetParticleCount();
+
+		windowText << L"    [F] ";
+		switch (m_filterMethod)
+		{
+		case Renderer::BILATERAL_MIP:
+			windowText << L"Bilateral MIP";
+			break;
+		case Renderer::BILATERAL_SEP:
+			windowText << L"Separable-pass bilateral";
+			break;
+		}
 
 		SetCustomWindowText(windowText.str().c_str());
 	}

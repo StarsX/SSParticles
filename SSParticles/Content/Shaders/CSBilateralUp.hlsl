@@ -58,7 +58,7 @@ float MipGaussianBlendWeight(uint level, int radius)
 	const float sigma_sq = sigma * sigma;
 
 	// Gaussian-approximating Haar coefficients (weights of box filters)
-	const float l = level + 0.7;
+	const float l = level + 0.6;
 	const float c = 2.0 * PI * sigma_sq;
 	const float numerator = pow(16.0, l) * log(4.0);
 	const float denorminator = c * (pow(4.0, l) + c);
@@ -203,6 +203,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 		// Calculate edge-stopping function
 		float we = depth < 1.0;
 		we *= DepthWeight(depthC, depth, SIGMA_Z);
+		we = sqrt(sqrt(we));
 
 		// Apply the convolution weight with edge-stopping function
 		const float coarser = lerp(src, depth, we);

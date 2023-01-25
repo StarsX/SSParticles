@@ -77,6 +77,7 @@ private:
 	bool		m_showFPS;
 	bool		m_isPaused;
 	StepTimer	m_timer;
+	Renderer::FilterMethod m_filterMethod;
 
 	// User camera interactions
 	bool m_tracking;
