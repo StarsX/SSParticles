@@ -139,9 +139,18 @@
     <FxCompile Include="Content\Shaders\CSBilateralUp.hlsl">
       <Filter>Shaders\MipBlur</Filter>
     </FxCompile>
+    <FxCompile Include="Content\Shaders\CSBilateralGT.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\CSArrangeInput.hlsl">
+      <Filter>Shaders</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Content\Shaders\BlurCommon.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
+    <None Include="Content\Shaders\DepthToNormal.hlsli">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

@@ -7,14 +7,14 @@
 //--------------------------------------------------------------------------------------
 // Textures
 //--------------------------------------------------------------------------------------
-RWTexture2D<float> g_rwDepth;
+RWTexture2D<float2> g_rwDepth;
 
-Texture2D<float> g_txDepth;
+Texture2D<float2> g_txDepth;
 
 //--------------------------------------------------------------------------------------
 // Get domain location of bilinear filter
 //--------------------------------------------------------------------------------------
-float2 BilinearDomainLoc(Texture2D<float> tx, float2 uv)
+float2 BilinearDomainLoc(Texture2D<float2> tx, float2 uv)
 {
 	float2 texSize;
 	tx.GetDimensions(texSize.x, texSize.y);
@@ -33,8 +33,13 @@ void main(uint2 DTid : SV_DispatchThreadID)
 
 	const float2 uv = (DTid + 0.5) / imageSize;
 
-	const float4 srcs = g_txDepth.GatherRed(g_sampler, uv);
-	if (all(srcs >= 1.0))
+	float2x4 gathers = float2x4(
+		g_txDepth.GatherRed(g_sampler, uv),
+		g_txDepth.GatherGreen(g_sampler, uv)
+		);
+
+	const float4x2 srcs = transpose(gathers);
+	if (all(gathers[1] >= 1.0))
 	{
 		g_rwDepth[DTid] = 1.0;
 
@@ -42,7 +47,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	}
 
 	// Get fallback samples with point (nearest) sampler
-	const float src0 = g_txDepth.SampleLevel(g_sampler, uv, 0.0);
+	const float2 src0 = g_txDepth.SampleLevel(g_sampler, uv, 0.0);
 
 	const float2 domain = BilinearDomainLoc(g_txDepth, uv);
 	const float2 domainInv = 1.0 - domain;
@@ -69,31 +74,38 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	[unroll]
 	for (uint i = 0; i < 4; ++i)
 	{
-		const float w = (srcs[i] < 1.0) * wb[i]; // Mask out the background (depth = 1)
-		z += srcs[i] * w;
+		const float w = (srcs[i].y < 1.0) * wb[i]; // Mask out the background (depth = 1)
+		z += srcs[i].y * w;
 		ws += w;
 	}
 
 	z /= ws;
 
 	// Down sampling with 2x2 bilateral filtering
-	float dst = 0.0;
+	float2 dst = float2(0.0, 0.0);
+	float w_max = 0.0;
 	ws = 0.0;
 
 	[unroll]
 	for (i = 0; i < 4; ++i)
 	{
 		// Calculate edge-stopping function
-		float w = srcs[i] < 1.0;
-		w *= DepthWeight(z, srcs[i], SIGMA_Z);
+		float w = srcs[i].y < 1.0;
+		w *= DepthWeight(z, srcs[i].y, SIGMA_Z);
 		w *= wb[i];
 
-		dst += srcs[i] * w;
+		if (w > w_max)
+		{
+			dst.y = srcs[i].y;
+			w_max = w;
+		}
+
+		dst.x += srcs[i].x * w;
 		ws += w;
 	}
 
 	// Fallback for all-zero weights
-	dst = ws > 0.0 ? dst / ws : 1.0;
+	dst.x = ws > 0.0 ? dst.x / ws : src0.x;
 
 	g_rwDepth[DTid] = dst;
 }

@@ -46,6 +46,8 @@ protected:
 		PS_VISUALIZE,
 		PS_ENVIRONMENT,
 
+		CS_ARRANGE_INPUT,
+		CS_BILATERAL_GT,
 		CS_BILATERAL_H,
 		CS_BILATERAL_V,
 		CS_BILATERAL_DOWN,
@@ -57,6 +59,7 @@ protected:
 	bool createShaders();
 
 	void renderSphereDepth(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
+	void bilateralGT(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
 	void bilateralH(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
 	void bilateralV(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
 	void bilateralDown(XUSG::EZ::CommandList* pCommandList);

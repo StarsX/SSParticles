@@ -33,14 +33,15 @@ cbuffer cbPerPass	: register (b1)
 //--------------------------------------------------------------------------------------
 RWTexture2D<float> g_rwDst;
 
-Texture2D<float> g_txDepthCoarser	: register (t0);
-Texture2D<float> g_txDepth			: register (t1);
-Texture2D<float> g_txDepth0			: register (t2);
+Texture2D<float2> g_txDepthCoarser	: register (t0);
+Texture2D<float2> g_txDepthCoarserE	: register (t1);
+Texture2D<float2> g_txDepth			: register (t2);
+Texture2D<float> g_txDepth0			: register (t3);
 
 //--------------------------------------------------------------------------------------
 // Get domain location of bilinear filter
 //--------------------------------------------------------------------------------------
-float2 BilinearDomainLoc(Texture2D<float> tx, float2 uv)
+float2 BilinearDomainLoc(Texture2D<float2> tx, float2 uv)
 {
 	float2 texSize;
 	tx.GetDimensions(texSize.x, texSize.y);
@@ -90,7 +91,7 @@ float MipGaussianBlendWeightCoarse(uint level, int radius)
 //--------------------------------------------------------------------------------------
 // 3x3 finer samples
 //--------------------------------------------------------------------------------------
-void Fetch3x3(out float samples3x3[9], Texture2D<float> txSrc, uint2 pos)
+void Fetch3x3(out float2 samples3x3[9], Texture2D<float2> txSrc, uint2 pos)
 {
 	uint i = 0;
 	[unroll]
@@ -116,7 +117,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 
 	const float2 uv = (DTid + 0.5) / imageSize;
 
-	const float depth = g_txDepth[DTid];
+	const float depth = g_txDepth[DTid].y;
 	if (g_level > 0)
 	{
 		if (depth >= 1.0) return;
@@ -129,11 +130,15 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	}
 
 	// Fetch 3x3 finer samples
-	float depths[9];
+	float2 depths[9];
 	Fetch3x3(depths, g_txDepth, DTid);
 
 	// Gather 2x2 coarser samples
-	const float4 coarserDepths = g_txDepthCoarser.GatherRed(g_sampler, uv);
+	const float2x4 gathers = float2x4(
+		g_txDepthCoarser.GatherRed(g_sampler, uv),
+		g_txDepthCoarserE.GatherGreen(g_sampler, uv)
+		);
+	const float4x2 coarserDepths = transpose(gathers);
 
 	// Calculate domain weights for bilinear interpolation
 	const float2 domain = BilinearDomainLoc(g_txDepthCoarser, uv);
@@ -156,17 +161,17 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	};
 
 	// Assign center samples
-	const float depthC = depths[4];
+	const float2 depthC = depths[4];
 
 	// Calculate Gaussian weight
-	const float blurRadius = GetBlurRadius(g_txDepth0, depthC, g_proj, g_projI);
+	const float blurRadius = GetBlurRadius(g_txDepth0, depthC.x, g_proj, g_projI);
 #ifdef _CALC_COARSE_WEIGHT_DIRECTLY_
 	const float w = 1.0 - MipGaussianBlendWeightCoarse(g_level, blurRadius);
 #else
 	const float w = MipGaussianBlendWeight(g_level, blurRadius);
 #endif
 
-	float src = depthC; // Fallback to the center sample
+	float src = depthC.x; // Fallback to the center sample
 	float ws;
 
 	uint i;
@@ -178,19 +183,19 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	[unroll]
 	for (i = 0; i < 9; ++i)
 	{
-		const float depth = depths[i];
+		const float2 depth = depths[i];
 
 		// Calculate edge-stopping function
-		float w = depth < 1.0;
-		w *= DepthWeight(depthC, depth, SIGMA_Z);
+		float w = depth.y < 1.0;
+		w *= DepthWeight(depthC.y, depth.y, SIGMA_Z);
 		w = pow(w, 0.333);
 
 		// 3x3 bilateral filter
-		src += depth * w;
+		src += depth.x * w;
 		ws += w;
 	}
 
-	src = ws > 0.0 ? src / ws : depthC;
+	src = ws > 0.0 ? src / ws : depthC.x;
 #endif
 
 	float dst = 0.0;
@@ -199,16 +204,16 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	[unroll]
 	for (i = 0; i < 4; ++i)
 	{
-		const float depth = coarserDepths[i];
+		const float2 depth = coarserDepths[i];
 
 		// Calculate edge-stopping function
-		float we = depth < 1.0;
-		we *= DepthWeight(depthC, depth, SIGMA_Z);
+		float we = depth.y < 1.0;
+		we *= DepthWeight(depthC.y, depth.y, SIGMA_Z);
 		we = pow(we, 0.333);
 
 		// Apply the convolution weight with edge-stopping function
-		const float coarser = lerp(src, depth, we);
-		dst += lerp(coarser * we, depthC, w) * wb[i];
+		const float coarser = lerp(src, depth.x, we);
+		dst += lerp(coarser * we, depthC.x, w) * wb[i];
 		ws += lerp(we, 1.0, w) * wb[i];
 	}
 

@@ -90,7 +90,7 @@ bool Renderer::SetViewport(const Device* pDevice, uint32_t width, uint32_t heigh
 		ResourceFlag::NONE, 1, 1, 1, 1.0f, 0, false, MemoryFlag::NONE, L"Depth"), false);
 
 	m_scratch = Texture::MakeUnique();
-	XUSG_N_RETURN(m_scratch->Create(pDevice, width, height, Format::R32_FLOAT, 1,
+	XUSG_N_RETURN(m_scratch->Create(pDevice, width, height, Format::R32G32_FLOAT, 1,
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, m_numMips, 1, false, MemoryFlag::NONE, L"Scratch"), false);
 
 	m_filtered = Texture::MakeUnique();
@@ -139,14 +139,16 @@ void Renderer::Render(EZ::CommandList* pCommandList, uint8_t frameIndex,
 	switch (method)
 	{
 	case BILATERAL_MIP:
-		pCommandList->Blit(m_scratch.get(), m_depth.get(), POINT_CLAMP);
+		pCommandList->Blit(m_scratch.get(), m_depth.get(), POINT_CLAMP, m_shaders[CS_ARRANGE_INPUT]);
 		bilateralDown(pCommandList);
 		bilateralUp(pCommandList, frameIndex);
 		break;
-	case BILATERAL_SEP:
-		bilateralH(pCommandList, frameIndex);
-		bilateralV(pCommandList, frameIndex);
-		break;
+	//case BILATERAL_SEP:
+	//	bilateralH(pCommandList, frameIndex);
+	//	bilateralV(pCommandList, frameIndex);
+	//	break;
+	default:
+		bilateralGT(pCommandList, frameIndex);
 	}
 
 	visualize(pCommandList, frameIndex, pOutView, needClear);
@@ -183,6 +185,12 @@ bool Renderer::createShaders()
 
 	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::PS, psIndex, L"PSEnvironment.cso"), false);
 	m_shaders[PS_ENVIRONMENT] = m_shaderLib->GetShader(Shader::Stage::PS, psIndex++);
+
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, L"CSArrangeInput.cso"), false);
+	m_shaders[CS_ARRANGE_INPUT] = m_shaderLib->GetShader(Shader::Stage::CS, csIndex++);
+
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, L"CSBilateralGT.cso"), false);
+	m_shaders[CS_BILATERAL_GT] = m_shaderLib->GetShader(Shader::Stage::CS, csIndex++);
 
 	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, L"CSBilateralH.cso"), false);
 	m_shaders[CS_BILATERAL_H] = m_shaderLib->GetShader(Shader::Stage::CS, csIndex++);
@@ -232,6 +240,27 @@ void Renderer::renderSphereDepth(EZ::CommandList* pCommandList, uint8_t frameInd
 	pCommandList->SetResources(Shader::Stage::VS, DescriptorType::SRV, 0, 1, &srv);
 
 	pCommandList->Draw(4, m_numParticles[m_particleFrameIdx], 0, 0);
+}
+
+void Renderer::bilateralGT(EZ::CommandList* pCommandList, uint8_t frameIndex)
+{
+	// Set pipeline state
+	pCommandList->SetComputeShader(m_shaders[CS_BILATERAL_GT]);
+
+	// Set UAV
+	const auto uav = EZ::GetUAV(m_filtered.get());
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav);
+
+	// Set CBV
+	const auto cbv = EZ::GetCBV(m_cbPerFrame.get(), frameIndex);
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::CBV, 0, 1, &cbv);
+
+	// Set SRV
+	const auto srv = EZ::GetSRV(m_depth.get());
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, 1, &srv);
+
+	// Dispatch grid
+	pCommandList->Dispatch(XUSG_DIV_UP(m_viewport.x, 8), XUSG_DIV_UP(m_viewport.y, 8), 1);
 }
 
 void Renderer::bilateralH(EZ::CommandList* pCommandList, uint8_t frameIndex)
@@ -335,6 +364,7 @@ void Renderer::bilateralUp(EZ::CommandList* pCommandList, uint8_t frameIndex)
 		const EZ::ResourceView srvs[] =
 		{
 			EZ::GetSRVLevel(i > 0 ? m_filtered.get() : m_scratch.get(), c),
+			EZ::GetSRVLevel(m_scratch.get(), c),
 			EZ::GetSRVLevel(m_scratch.get(), level),
 			EZ::GetSRVLevel(m_scratch.get(), 0)
 		};

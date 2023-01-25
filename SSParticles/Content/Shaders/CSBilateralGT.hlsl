@@ -35,21 +35,26 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	const int radius = GetBlurRadius(g_txDepth, depth, g_proj, g_projI);
 
 	float2 sum = 0.0;
-	for (int i = -radius; i <= radius; ++i)
+	for (int y = -radius; y <= radius; ++y)
 	{
-		const uint2 idx = uint2((int)DTid.x + i, DTid.y);
+		for (int x = -radius; x <= radius; ++x)
+		{
+			const int2 offset = int2(x, y);
+			const uint2 idx = (int2)DTid + offset;
 
-		const float z = g_txDepth[idx];
+			const float z = g_txDepth[idx];
 
-		// spatial domain
-		float w = Gaussian(i, radius);
+			// spatial domain
+			const float r = length(offset);
+			float w = Gaussian(r, radius);
 
-		// range domain
-		w *= z < 1.0;
-		w *= DepthWeight(depth, z, SIGMA_Z);
+			// range domain
+			w *= z < 1.0;
+			w *= DepthWeight(depth, z, SIGMA_Z);
 
-		sum.x += z * w;
-		sum.y += w;
+			sum.x += z * w;
+			sum.y += w;
+		}
 	}
 
 	g_rwDepth[DTid] = sum.y > 0.0 ? sum.x / sum.y : sum.x;

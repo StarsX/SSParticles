@@ -18,7 +18,7 @@ cbuffer cbPerFrame
 //--------------------------------------------------------------------------------------
 // Textures
 //--------------------------------------------------------------------------------------
-RWTexture2D<float3> g_rwDepth;
+RWTexture2D<float> g_rwDepth;
 
 Texture2D<float> g_txDepth;
 
