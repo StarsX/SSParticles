@@ -31,6 +31,9 @@
     <Filter Include="Shaders\MipBlur">
       <UniqueIdentifier>{ab6477e2-08d4-4348-822b-c33c4d699f13}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Shaders\Render">
+      <UniqueIdentifier>{96ced728-5c29-437a-b232-1a5756170e94}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Common\d3dx12.h">
@@ -112,21 +115,6 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="Content\Shaders\VSScreenQuad.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Content\Shaders\PSEnvironment.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Content\Shaders\VSParticle.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Content\Shaders\PSVisualize.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
-    <FxCompile Include="Content\Shaders\PSSphere.hlsl">
-      <Filter>Shaders</Filter>
-    </FxCompile>
     <FxCompile Include="Content\Shaders\CSBilateralH.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
@@ -145,13 +133,31 @@
     <FxCompile Include="Content\Shaders\CSArrangeInput.hlsl">
       <Filter>Shaders</Filter>
     </FxCompile>
+    <FxCompile Include="Content\Shaders\PSVisualize.hlsl">
+      <Filter>Shaders\Render</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\PSSphere.hlsl">
+      <Filter>Shaders\Render</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\VSParticle.hlsl">
+      <Filter>Shaders\Render</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\VSScreenQuad.hlsl">
+      <Filter>Shaders\Render</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\PSEnvironment.hlsl">
+      <Filter>Shaders\Render</Filter>
+    </FxCompile>
+    <FxCompile Include="Content\Shaders\PSThickness.hlsl">
+      <Filter>Shaders\Render</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="Content\Shaders\BlurCommon.hlsli">
       <Filter>Shaders</Filter>
     </None>
     <None Include="Content\Shaders\DepthToNormal.hlsli">
-      <Filter>Shaders</Filter>
+      <Filter>Shaders\Render</Filter>
     </None>
   </ItemGroup>
 </Project>

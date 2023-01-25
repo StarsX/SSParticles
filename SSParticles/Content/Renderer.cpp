@@ -89,6 +89,10 @@ bool Renderer::SetViewport(const Device* pDevice, uint32_t width, uint32_t heigh
 	XUSG_N_RETURN(m_depth->Create(pDevice, width, height, Format::D32_FLOAT,
 		ResourceFlag::NONE, 1, 1, 1, 1.0f, 0, false, MemoryFlag::NONE, L"Depth"), false);
 
+	m_thickness = RenderTarget::MakeUnique();
+	XUSG_N_RETURN(m_thickness->Create(pDevice, width, height, Format::R16_FLOAT, 1,
+		ResourceFlag::NONE, 1, 1, nullptr, false, MemoryFlag::NONE, L"Thickness"), false);
+
 	m_scratch = Texture::MakeUnique();
 	XUSG_N_RETURN(m_scratch->Create(pDevice, width, height, Format::R32G32_FLOAT, 1,
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, m_numMips, 1, false, MemoryFlag::NONE, L"Scratch"), false);
@@ -151,6 +155,7 @@ void Renderer::Render(EZ::CommandList* pCommandList, uint8_t frameIndex,
 		bilateralGT(pCommandList, frameIndex);
 	}
 
+	renderThickness(pCommandList, frameIndex);
 	visualize(pCommandList, frameIndex, pOutView, needClear);
 	//environment(pCommandList, frameIndex);
 }
@@ -179,6 +184,9 @@ bool Renderer::createShaders()
 
 	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::PS, psIndex, L"PSSphere.cso"), false);
 	m_shaders[PS_SPHERE] = m_shaderLib->GetShader(Shader::Stage::PS, psIndex++);
+
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::PS, psIndex, L"PSThickness.cso"), false);
+	m_shaders[PS_THICKNESS] = m_shaderLib->GetShader(Shader::Stage::PS, psIndex++);
 
 	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::PS, psIndex, L"PSVisualize.cso"), false);
 	m_shaders[PS_VISUALIZE] = m_shaderLib->GetShader(Shader::Stage::PS, psIndex++);
@@ -240,6 +248,45 @@ void Renderer::renderSphereDepth(EZ::CommandList* pCommandList, uint8_t frameInd
 	pCommandList->SetResources(Shader::Stage::VS, DescriptorType::SRV, 0, 1, &srv);
 
 	pCommandList->Draw(4, m_numParticles[m_particleFrameIdx], 0, 0);
+}
+
+void Renderer::renderThickness(EZ::CommandList* pCommandList, uint8_t frameIndex)
+{
+	// Set pipeline state
+	pCommandList->SetGraphicsShader(Shader::Stage::VS, m_shaders[VS_PARTICLE]);
+	pCommandList->SetGraphicsShader(Shader::Stage::PS, m_shaders[PS_THICKNESS]);
+	pCommandList->DSSetState(Graphics::DEPTH_STENCIL_NONE);
+	pCommandList->OMSetBlendState(Graphics::BlendPreset::ACCUMULATIVE);
+
+	// Set depth target
+	const auto rtv = EZ::GetRTV(m_thickness.get());
+	pCommandList->OMSetRenderTargets(1, &rtv, nullptr);
+
+	// Clear depth target
+	const float clear[] = { 0.0f, 0.0f, 0.0f, 0.0f };
+	pCommandList->ClearRenderTargetView(rtv, clear);
+
+	// Set viewport
+	Viewport viewport(0.0f, 0.0f, static_cast<float>(m_viewport.x), static_cast<float>(m_viewport.y));
+	RectRange scissorRect(0, 0, m_viewport.x, m_viewport.y);
+	pCommandList->RSSetViewports(1, &viewport);
+	pCommandList->RSSetScissorRects(1, &scissorRect);
+
+	// Set IA
+	pCommandList->IASetPrimitiveTopology(PrimitiveTopology::TRIANGLESTRIP);
+
+	// Set CBVs
+	const auto cbv = EZ::GetCBV(m_cbPerFrame.get(), frameIndex);
+	pCommandList->SetResources(Shader::Stage::VS, DescriptorType::CBV, 0, 1, &cbv);
+	pCommandList->SetResources(Shader::Stage::PS, DescriptorType::CBV, 0, 1, &cbv);
+
+	// Set SRV
+	const auto srv = EZ::GetSRV(m_particleFrames[m_particleFrameIdx].get());
+	pCommandList->SetResources(Shader::Stage::VS, DescriptorType::SRV, 0, 1, &srv);
+
+	pCommandList->Draw(4, m_numParticles[m_particleFrameIdx], 0, 0);
+
+	pCommandList->OMSetBlendState(Graphics::BlendPreset::DEFAULT_OPAQUE);
 }
 
 void Renderer::bilateralGT(EZ::CommandList* pCommandList, uint8_t frameIndex)

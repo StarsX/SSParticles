@@ -43,6 +43,7 @@ protected:
 		VS_SCREEN_QUAD,
 
 		PS_SPHERE,
+		PS_THICKNESS,
 		PS_VISUALIZE,
 		PS_ENVIRONMENT,
 
@@ -59,6 +60,7 @@ protected:
 	bool createShaders();
 
 	void renderSphereDepth(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
+	void renderThickness(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
 	void bilateralGT(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
 	void bilateralH(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
 	void bilateralV(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
@@ -79,6 +81,7 @@ protected:
 
 	XUSG::Texture::uptr			m_scratch;
 	XUSG::Texture::uptr			m_filtered;
+	XUSG::RenderTarget::uptr	m_thickness;
 	XUSG::DepthStencil::uptr	m_depth;
 
 	XUSG::ConstantBuffer::uptr	m_cbPerFrame;
