@@ -68,7 +68,8 @@ protected:
 	void bilateralUp(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
 	void visualize(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex,
 		XUSG::RenderTarget* pOutView, bool needClear);
-	void environment(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
+	void environment(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex,
+		XUSG::RenderTarget* pOutView);
 
 	uint8_t		m_frameParity;
 

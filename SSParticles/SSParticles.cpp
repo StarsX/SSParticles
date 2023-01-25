@@ -97,7 +97,7 @@ void SSParticles::LoadPipeline()
 
 	// Create the command queue.
 	m_commandQueue = CommandQueue::MakeUnique();
-	XUSG_N_RETURN(m_commandQueue->Create(m_device.get(), CommandListType::DIRECT, CommandQueueFlag::NONE,
+	XUSG_N_RETURN(m_commandQueue->Create(m_device.get(), CommandListType::DIRECT, CommandQueueFlag::DISABLE_GPU_TIMEOUT,
 		0, 0, L"CommandQueue"), ThrowIfFailed(E_FAIL));
 
 	// Create the swap chain.
@@ -125,7 +125,7 @@ void SSParticles::LoadAssets()
 		m_commandAllocators[m_frameIndex].get(), nullptr), ThrowIfFailed(E_FAIL));
 
 	m_commandListEZ = EZ::CommandList::MakeUnique();
-	XUSG_N_RETURN(m_commandListEZ->Create(pCommandList, 2, 1024),
+	XUSG_N_RETURN(m_commandListEZ->Create(pCommandList, 4, 1024),
 		ThrowIfFailed(E_FAIL));
 
 	vector<Resource::uptr> uploaders(0);	

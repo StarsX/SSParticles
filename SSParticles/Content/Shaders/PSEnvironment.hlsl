@@ -19,10 +19,16 @@ struct PSIn
 //--------------------------------------------------------------------------------------
 // Constant buffer
 //--------------------------------------------------------------------------------------
+//--------------------------------------------------------------------------------------
+// Constant buffer
+//--------------------------------------------------------------------------------------
 cbuffer cbPerFrame
 {
+	matrix	g_worldView;
+	matrix	g_proj;
+	matrix	g_viewI;
+	matrix	g_projI;
 	float3 g_eyePt;
-	matrix g_screenToWorld;
 };
 
 //--------------------------------------------------------------------------------------
@@ -49,7 +55,8 @@ min16float4 main(PSIn input) : SV_TARGET
 	xy.y = -xy.y;
 
 	// Calculate cube mapping
-	float4 pos = mul(float4(xy, 1.0.xx), g_screenToWorld);
+	float4 pos = mul(float4(xy, 1.0.xx), g_projI);
+	pos = mul(pos, g_viewI);
 	const min16float3 viewDir = min16float3(normalize(g_eyePt - pos.xyz / pos.w));
 
 	const float3 start = g_eyePt;

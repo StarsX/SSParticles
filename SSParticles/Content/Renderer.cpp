@@ -5,6 +5,9 @@
 #include "DXFrameworkHelper.h"
 #include "Renderer.h"
 #include "ParticleBin.h"
+#define _INDEPENDENT_DDS_LOADER_
+#include "Advanced/XUSGDDSLoader.h"
+#undef _INDEPENDENT_DDS_LOADER_
 
 using namespace std;
 using namespace DirectX;
@@ -16,6 +19,7 @@ struct CBPerFrame
 	XMFLOAT4X4	Proj;
 	XMFLOAT4X4	ViewI;
 	XMFLOAT4X4	ProjI;
+	XMFLOAT3	EyePt;
 };
 
 Renderer::Renderer() :
@@ -42,6 +46,16 @@ bool Renderer::Init(CommandList* pCommandList, vector<Resource::uptr>& uploaders
 #endif
 	vector<ParticleFrame> particleFrameData(numFrames);
 	LoadParticleBinAnimation(particleFrameData.data(), &m_fps, fileNamePrefix, numFrames, bPrint);
+
+	// Load input image
+	{
+		DDS::Loader textureLoader;
+		DDS::AlphaMode alphaMode;
+
+		uploaders.emplace_back(Resource::MakeUnique());
+		XUSG_N_RETURN(textureLoader.CreateTextureFromFile(pCommandList, L"Assets/rnl_cross.dds",
+			8192, false, m_radiance, uploaders.back().get(), &alphaMode), false);
+	}
 
 	// Create buffers
 	m_particleFrames.resize(numFrames);
@@ -129,6 +143,7 @@ void Renderer::UpdateFrame(double time, uint8_t frameIndex,
 		XMStoreFloat4x4(&pCbData->Proj, XMMatrixTranspose(proj));
 		XMStoreFloat4x4(&pCbData->ViewI, XMMatrixTranspose(viewI));
 		XMStoreFloat4x4(&pCbData->ProjI, XMMatrixTranspose(projI));
+		XMStoreFloat3(&pCbData->EyePt, eyePt);
 	}
 
 	m_particleFrameIdx = static_cast<uint32_t>(m_fps * time) % m_numFrames;
@@ -157,7 +172,7 @@ void Renderer::Render(EZ::CommandList* pCommandList, uint8_t frameIndex,
 
 	renderThickness(pCommandList, frameIndex);
 	visualize(pCommandList, frameIndex, pOutView, needClear);
-	//environment(pCommandList, frameIndex);
+	environment(pCommandList, frameIndex, pOutView);
 }
 
 uint32_t Renderer::GetFrameIndex() const
@@ -464,35 +479,34 @@ void Renderer::visualize(EZ::CommandList* pCommandList, uint8_t frameIndex,
 	pCommandList->Draw(3, 1, 0, 0);
 }
 
-void Renderer::environment(EZ::CommandList* pCommandList, uint8_t frameIndex)
+void Renderer::environment(EZ::CommandList* pCommandList, uint8_t frameIndex, RenderTarget* pOutView)
 {
-	//// Set pipeline state
-	//pCommandList->SetGraphicsShader(Shader::Stage::VS, m_shaders[VS_SCREEN_QUAD]);
-	//pCommandList->SetGraphicsShader(Shader::Stage::PS, m_shaders[PS_ENVIRONMENT]);
-	//pCommandList->DSSetState(Graphics::DEPTH_READ_LESS_EQUAL);
+	// Set pipeline state
+	pCommandList->SetGraphicsShader(Shader::Stage::VS, m_shaders[VS_SCREEN_QUAD]);
+	pCommandList->SetGraphicsShader(Shader::Stage::PS, m_shaders[PS_ENVIRONMENT]);
+	pCommandList->DSSetState(Graphics::DEPTH_READ_LESS_EQUAL);
 
-	//// Set render target
-	//const auto rtv = EZ::GetRTV(m_renderTargets[RT_COLOR].get());
-	//auto dsv = EZ::GetDSV(m_depth.get());
-	//pCommandList->OMSetRenderTargets(1, &rtv, &dsv);
+	// Set render target
+	const auto rtv = EZ::GetRTV(pOutView);
+	const auto dsv = EZ::GetDSV(m_depth.get());
+	pCommandList->OMSetRenderTargets(1, &rtv, &dsv);
 
-	//// Set CBV
-	//const auto cbv = EZ::GetCBV(m_cbPerFrame.get(), frameIndex);
-	//pCommandList->SetResources(Shader::Stage::PS, DescriptorType::CBV, 0, 1, &cbv);
+	// Set CBV
+	const auto cbv = EZ::GetCBV(m_cbPerFrame.get(), frameIndex);
+	pCommandList->SetResources(Shader::Stage::PS, DescriptorType::CBV, 0, 1, &cbv);
 
-	//// Set SRVs
-	//const EZ::ResourceView srvs[] =
-	//{
-	//	EZ::GetSRV(m_radiance.get()),
-	//	EZ::GetSRV(m_coeffSH.get())
-	//};
-	//pCommandList->SetResources(Shader::Stage::PS, DescriptorType::SRV, 0,
-	//	static_cast<uint32_t>(size(srvs)), srvs);
+	// Set SRVs
+	const EZ::ResourceView srvs[] =
+	{
+		EZ::GetSRV(m_radiance.get())
+	};
+	pCommandList->SetResources(Shader::Stage::PS, DescriptorType::SRV, 0,
+		static_cast<uint32_t>(size(srvs)), srvs);
 
-	//// Set sampler
-	//const auto sampler = SamplerPreset::ANISOTROPIC_WRAP;
-	//pCommandList->SetSamplerStates(Shader::Stage::PS, 0, 1, &sampler);
+	// Set sampler
+	const auto sampler = SamplerPreset::ANISOTROPIC_WRAP;
+	pCommandList->SetSamplerStates(Shader::Stage::PS, 0, 1, &sampler);
 
-	//pCommandList->IASetPrimitiveTopology(PrimitiveTopology::TRIANGLELIST);
-	//pCommandList->Draw(3, 1, 0, 0);
+	pCommandList->IASetPrimitiveTopology(PrimitiveTopology::TRIANGLELIST);
+	pCommandList->Draw(3, 1, 0, 0);
 }
