@@ -168,7 +168,7 @@ void SSParticles::LoadAssets()
 
 	// View initialization
 	m_focusPt = XMFLOAT3(0.0f, 0.0f, 0.0f);
-	m_eyePt = XMFLOAT3(1.0f, 3.0f, -5.6f);
+	m_eyePt = XMFLOAT3(3.0f, 2.5f, -5.0f);
 	const auto focusPt = XMLoadFloat3(&m_focusPt);
 	const auto eyePt = XMLoadFloat3(&m_eyePt);
 	const auto view = XMMatrixLookAtLH(eyePt, focusPt, XMVectorSet(0.0f, 1.0f, 0.0f, 1.0f));

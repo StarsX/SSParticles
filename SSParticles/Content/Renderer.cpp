@@ -162,17 +162,22 @@ void Renderer::Render(EZ::CommandList* pCommandList, uint8_t frameIndex,
 		bilateralDown(pCommandList);
 		bilateralUp(pCommandList, frameIndex);
 		break;
-	//case BILATERAL_SEP:
-	//	bilateralH(pCommandList, frameIndex);
-	//	bilateralV(pCommandList, frameIndex);
-	//	break;
+	case BILATERAL_SEP:
+		bilateralH(pCommandList, frameIndex);
+		bilateralV(pCommandList, frameIndex);
+		break;
 	default:
 		bilateralGT(pCommandList, frameIndex);
 	}
 
+#if 1
 	renderThickness(pCommandList, frameIndex);
+	shade(pCommandList, frameIndex, pOutView);
+	environment(pCommandList, frameIndex, pOutView);
+#else
 	visualize(pCommandList, frameIndex, pOutView, needClear);
 	environment(pCommandList, frameIndex, pOutView);
+#endif
 }
 
 uint32_t Renderer::GetFrameIndex() const
@@ -205,6 +210,9 @@ bool Renderer::createShaders()
 
 	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::PS, psIndex, L"PSVisualize.cso"), false);
 	m_shaders[PS_VISUALIZE] = m_shaderLib->GetShader(Shader::Stage::PS, psIndex++);
+
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::PS, psIndex, L"PSShade.cso"), false);
+	m_shaders[PS_SHADE] = m_shaderLib->GetShader(Shader::Stage::PS, psIndex++);
 
 	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::PS, psIndex, L"PSEnvironment.cso"), false);
 	m_shaders[PS_ENVIRONMENT] = m_shaderLib->GetShader(Shader::Stage::PS, psIndex++);
@@ -437,6 +445,47 @@ void Renderer::bilateralUp(EZ::CommandList* pCommandList, uint8_t frameIndex)
 		const auto threadsY = (max)(m_viewport.y >> level, 1u);
 		pCommandList->Dispatch(XUSG_DIV_UP(threadsX, 8), XUSG_DIV_UP(threadsY, 8), 1);
 	}
+}
+
+void Renderer::shade(EZ::CommandList* pCommandList, uint8_t frameIndex, RenderTarget* pOutView)
+{
+	// Set pipeline state
+	pCommandList->SetGraphicsShader(Shader::Stage::VS, m_shaders[VS_SCREEN_QUAD]);
+	pCommandList->SetGraphicsShader(Shader::Stage::PS, m_shaders[PS_SHADE]);
+	pCommandList->DSSetState(Graphics::DEPTH_STENCIL_NONE);
+
+	// Set render target
+	const auto rtv = EZ::GetRTV(pOutView);
+	pCommandList->OMSetRenderTargets(1, &rtv, nullptr);
+
+	// Set viewport
+	Viewport viewport(0.0f, 0.0f, static_cast<float>(m_viewport.x), static_cast<float>(m_viewport.y));
+	RectRange scissorRect(0, 0, m_viewport.x, m_viewport.y);
+	pCommandList->RSSetViewports(1, &viewport);
+	pCommandList->RSSetScissorRects(1, &scissorRect);
+
+	// Set IA
+	pCommandList->IASetPrimitiveTopology(PrimitiveTopology::TRIANGLESTRIP);
+
+	// Set CBV
+	const auto cbvPerFrame = EZ::GetCBV(m_cbPerFrame.get(), frameIndex);
+	pCommandList->SetResources(Shader::Stage::PS, DescriptorType::CBV, 0, 1, &cbvPerFrame);
+
+	// Set SRVs
+	const EZ::ResourceView srvs[] =
+	{
+		EZ::GetSRV(m_filtered.get()),
+		EZ::GetSRV(m_thickness.get()),
+		EZ::GetSRV(m_radiance.get())
+	};
+	pCommandList->SetResources(Shader::Stage::PS, DescriptorType::SRV, 0,
+		static_cast<uint32_t>(size(srvs)), srvs);
+
+	// Set sampler
+	const auto sampler = SamplerPreset::ANISOTROPIC_WRAP;
+	pCommandList->SetSamplerStates(Shader::Stage::PS, 0, 1, &sampler);
+
+	pCommandList->Draw(3, 1, 0, 0);
 }
 
 void Renderer::visualize(EZ::CommandList* pCommandList, uint8_t frameIndex,

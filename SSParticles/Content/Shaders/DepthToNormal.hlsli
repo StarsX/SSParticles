@@ -20,6 +20,7 @@ cbuffer cbPerFrame
 	matrix	g_proj;
 	matrix	g_viewI;
 	matrix	g_projI;
+	float3 g_eyePt;
 };
 
 //--------------------------------------------------------------------------------------
@@ -38,7 +39,7 @@ float3 GetViewPos(float2 uv, float depth)
 	return pos.xyz / pos.w;
 }
 
-float3 DepthToNormal(PSIn input)
+float4 DepthToNormal(PSIn input)
 {
 	float2 texSize;
 	g_txDepth.GetDimensions(texSize.x, texSize.y);
@@ -49,7 +50,7 @@ float3 DepthToNormal(PSIn input)
 	if (depth >= 1.0) discard;
 
 	// Calculate eye-space position from depth
-	float3 pos = GetViewPos(input.UV, depth);
+	const float3 pos = GetViewPos(input.UV, depth);
 	const float2 texel = 1.0 / texSize;
 
 	// Calculate differences
@@ -68,5 +69,5 @@ float3 DepthToNormal(PSIn input)
 	// Calculate normal
 	float3 nrm = normalize(cross(ddx, ddy));
 
-	return mul(nrm, (float3x3)g_viewI);
+	return float4(mul(nrm, (float3x3)g_viewI), depth);
 }

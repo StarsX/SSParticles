@@ -6,7 +6,7 @@
 
 float4 main(PSIn input) : SV_TARGET
 {
-	const float3 N = DepthToNormal(input);
+	const float3 N = DepthToNormal(input).xyz;
 
 	// Simple shading
 	const float3 L = normalize(float3(1.0, 1.0, -1.0));

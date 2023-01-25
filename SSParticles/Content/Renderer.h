@@ -45,6 +45,7 @@ protected:
 		PS_SPHERE,
 		PS_THICKNESS,
 		PS_VISUALIZE,
+		PS_SHADE,
 		PS_ENVIRONMENT,
 
 		CS_ARRANGE_INPUT,
@@ -66,6 +67,8 @@ protected:
 	void bilateralV(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
 	void bilateralDown(XUSG::EZ::CommandList* pCommandList);
 	void bilateralUp(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex);
+	void shade(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex,
+		XUSG::RenderTarget* pOutView);
 	void visualize(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex,
 		XUSG::RenderTarget* pOutView, bool needClear);
 	void environment(XUSG::EZ::CommandList* pCommandList, uint8_t frameIndex,

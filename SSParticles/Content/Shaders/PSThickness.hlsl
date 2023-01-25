@@ -22,7 +22,7 @@ cbuffer cbPerFrame
 	matrix	g_proj;
 };
 
-float main(PSIn input) : SV_DepthLessEqual
+float4 main(PSIn input) : SV_TARGET
 {
 	// Calculate eye-space sphere normal from texture coordinates
 	float3 nrm;
