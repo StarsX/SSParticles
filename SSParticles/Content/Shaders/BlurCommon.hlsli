@@ -43,5 +43,5 @@ int GetBlurRadius(Texture2D<float> txDepth, float depth, matrix proj, matrix pro
 	float w = projI[2].z * depth + projI[3].z;
 	w /= projI[2].w * depth + projI[3].w;
 
-	return abs(0.07 * proj[0].x / w * texSize.x);
+	return abs(0.05 * proj[0].x / w * texSize.x);
 }
