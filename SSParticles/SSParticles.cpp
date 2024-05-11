@@ -28,9 +28,9 @@ SSParticles::SSParticles(uint32_t width, uint32_t height, wstring name) :
 	m_isPaused(false),
 	m_filterMethod(Renderer::BILATERAL_MIP),
 	m_tracking(false),
-	m_particleFileNamePrefix(""),
+	m_particleFileNamePrefix("Assets/RealFlowBox/particles/Square01"),
 	m_envFileName(L"Assets/rnl_cross.dds"),
-	m_numFrames(0),
+	m_numFrames(480),
 	m_meshPosScale(0.0f, 0.0f, 0.0f, 1.0f),
 	m_screenShot(0)
 {
@@ -398,21 +398,23 @@ void SSParticles::ParseCommandLineArgs(wchar_t* argv[], int argc)
 
 	for (auto i = 1; i < argc; ++i)
 	{
-		if (_wcsnicmp(argv[i], L"-p", wcslen(argv[i])) == 0 ||
-			_wcsnicmp(argv[i], L"/p", wcslen(argv[i])) == 0)
+		if (wcsncmp(argv[i], L"-particles", wcslen(argv[i])) == 0 ||
+			wcsncmp(argv[i], L"/particles", wcslen(argv[i])) == 0 ||
+			wcsncmp(argv[i], L"-p", wcslen(argv[i])) == 0 ||
+			wcsncmp(argv[i], L"/p", wcslen(argv[i])) == 0)
 		{
-			m_numFrames = i + 1 < argc ? _wtoi(argv[i + 1]) : m_numFrames;
-			if (i + 2 < argc)
+			if (i + 1 < argc) m_numFrames = _wtoi(argv[++i]);
+			if (i + 1 < argc)
 			{
-				m_particleFileNamePrefix.resize(wcslen(argv[i + 2]));
+				m_particleFileNamePrefix.resize(wcslen(argv[++i]));
 				for (size_t j = 0; j < m_particleFileNamePrefix.size(); ++j)
-					m_particleFileNamePrefix[j] = static_cast<char>(argv[i + 2][j]);
+					m_particleFileNamePrefix[j] = static_cast<char>(argv[i][j]);
 			}
 		}
-		else if (_wcsnicmp(argv[i], L"-env", wcslen(argv[i])) == 0 ||
-			_wcsnicmp(argv[i], L"/env", wcslen(argv[i])) == 0)
+		else if (wcsncmp(argv[i], L"-env", wcslen(argv[i])) == 0 ||
+			wcsncmp(argv[i], L"/env", wcslen(argv[i])) == 0)
 		{
-			m_envFileName = argv[i + 1];
+			if (i + 1 < argc) m_envFileName = argv[++i];
 		}
 	}
 }

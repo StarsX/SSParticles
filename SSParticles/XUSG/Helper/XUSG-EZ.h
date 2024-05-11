@@ -97,7 +97,8 @@ namespace XUSG
 				const uint32_t* pMaxUavsEachSpace[Shader::Stage::NUM_STAGE] = nullptr,
 				const uint32_t maxCbvSpaces[Shader::Stage::NUM_STAGE] = nullptr,
 				const uint32_t maxSrvSpaces[Shader::Stage::NUM_STAGE] = nullptr,
-				const uint32_t maxUavSpaces[Shader::Stage::NUM_STAGE] = nullptr) = 0;
+				const uint32_t maxUavSpaces[Shader::Stage::NUM_STAGE] = nullptr,
+				uint32_t slotExt = 0, uint32_t spaceExt = 0x7FFF0ADE) = 0;
 			virtual bool Create(const Device* pDevice, void* pHandle,
 				uint32_t samplerHeapSize, uint32_t cbvSrvUavHeapSize,
 				const uint32_t maxSamplers[Shader::Stage::NUM_STAGE] = nullptr,
@@ -107,6 +108,7 @@ namespace XUSG
 				const uint32_t maxCbvSpaces[Shader::Stage::NUM_STAGE] = nullptr,
 				const uint32_t maxSrvSpaces[Shader::Stage::NUM_STAGE] = nullptr,
 				const uint32_t maxUavSpaces[Shader::Stage::NUM_STAGE] = nullptr,
+				uint32_t slotExt = 0, uint32_t spaceExt = 0x7FFF0ADE,
 				const wchar_t* name = nullptr) = 0;
 			virtual bool Close(RenderTarget* pBackBuffer = nullptr) = 0;
 			virtual bool Reset(const CommandAllocator* pAllocator, const Pipeline& initialState) = 0;
@@ -168,7 +170,8 @@ namespace XUSG
 			virtual void SetGraphicsNodeMask(uint32_t nodeMask) = 0;
 			virtual void SetComputeShader(const Blob& shader) = 0;
 			virtual void SetComputeNodeMask(uint32_t nodeMask) = 0;
-			virtual void SetPipelineState(const Pipeline& pipelineState) = 0;
+			virtual void SetGraphicsPipelineState(const Pipeline& pipelineState, const Graphics::State* pState = nullptr) = 0;
+			virtual void SetComputePipelineState(const Pipeline& pipelineState, const Compute::State* pState = nullptr) = 0;
 			virtual void ExecuteBundle(const XUSG::CommandList* pCommandList) const = 0;
 			virtual void SetSamplers(Shader::Stage stage, uint32_t startBinding,
 				uint32_t numSamplers, const Sampler* const* pSamplers) = 0;
@@ -176,6 +179,8 @@ namespace XUSG
 				uint32_t numSamplers, const SamplerPreset* pSamplerPresets) = 0;
 			virtual void SetResources(Shader::Stage stage, DescriptorType descriptorType, uint32_t startBinding,
 				uint32_t numResources, const ResourceView* pResourceViews, uint32_t space = 0) = 0;
+			virtual void SetGraphicsDescriptorTable(Shader::Stage stage, DescriptorType descriptorType, const DescriptorTable& descriptorTable, uint32_t space) = 0;
+			virtual void SetComputeDescriptorTable(DescriptorType descriptorType, const DescriptorTable& descriptorTable, uint32_t space) = 0;
 			virtual void IASetPrimitiveTopology(PrimitiveTopology primitiveTopology) = 0;
 			virtual void IASetIndexBuffer(const IndexBufferView& view) = 0;
 			virtual void IASetVertexBuffers(uint32_t startSlot, uint32_t numViews, const VertexBufferView* pViews) = 0;
@@ -203,7 +208,6 @@ namespace XUSG
 			virtual void BeginEvent(uint32_t metaData, const void* pData, uint32_t size) const = 0;
 			virtual void EndEvent() = 0;
 
-			virtual void ResetDescriptorHeap(DescriptorHeapType type) = 0;
 			virtual void Resize() = 0;
 
 			virtual void Blit(Texture* pDstResource, Texture* pSrcResource, SamplerPreset sampler,
@@ -217,6 +221,11 @@ namespace XUSG
 			virtual const Graphics::Blend* GetBlend(Graphics::BlendPreset preset, uint8_t numColorRTs = 1) = 0;
 			virtual const Graphics::Rasterizer* GetRasterizer(Graphics::RasterizerPreset preset) = 0;
 			virtual const Graphics::DepthStencil* GetDepthStencil(Graphics::DepthStencilPreset preset) = 0;
+
+			virtual DescriptorTableLib* GetDescriptorTableLib() const = 0;
+
+			virtual const XUSG::PipelineLayout& GetGraphicsPipelineLayout() const = 0;
+			virtual const XUSG::PipelineLayout& GetComputePipelineLayout() const = 0;
 
 			virtual void* GetHandle() const = 0;
 			virtual void* GetDeviceHandle() const = 0;
