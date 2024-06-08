@@ -4,9 +4,9 @@
 
 #include "BlurCommon.hlsli"
 
-//#ifndef _CALC_COARSE_WEIGHT_DIRECTLY_
-//#define _CALC_COARSE_WEIGHT_DIRECTLY_
-//#endif
+#ifndef _CALC_COARSE_WEIGHT_DIRECTLY_
+#define _CALC_COARSE_WEIGHT_DIRECTLY_
+#endif
 
 #ifndef _MULTI_FINER_
 #define _MULTI_FINER_
@@ -37,17 +37,6 @@ Texture2D<float2> g_txDepthCoarser	: register (t0);
 Texture2D<float2> g_txDepthCoarserE	: register (t1);
 Texture2D<float2> g_txDepth			: register (t2);
 Texture2D<float> g_txDepth0			: register (t3);
-
-//--------------------------------------------------------------------------------------
-// Get domain location of bilinear filter
-//--------------------------------------------------------------------------------------
-float2 BilinearDomainLoc(Texture2D<float2> tx, float2 uv)
-{
-	float2 texSize;
-	tx.GetDimensions(texSize.x, texSize.y);
-
-	return frac(uv * texSize - 0.5);
-}
 
 //--------------------------------------------------------------------------------------
 // Calculate blending weight
@@ -107,6 +96,27 @@ void Fetch3x3(out float2 samples3x3[9], Texture2D<float2> txSrc, uint2 pos)
 }
 
 //--------------------------------------------------------------------------------------
+// Calculate domain weights for 2x2 to 3x3 linear interpolation
+//--------------------------------------------------------------------------------------
+void DomainWeights(out float wd[9], uint2 idx)
+{
+	const int2 offset = int2(idx % 2) * 2 - 1;
+	uint i = 0;
+
+	[unroll]
+		for (int y = -1; y <= 1; ++y)
+		{
+			[unroll]
+				for (int x = -1; x <= 1; ++x)
+				{
+					const float2 d = (6 - abs(int2(x, y) * 4 - offset)) / 9.0;
+					wd[i] = d.x * d.y;
+					++i;
+				}
+		}
+}
+
+//--------------------------------------------------------------------------------------
 // Compute shader
 //--------------------------------------------------------------------------------------
 [numthreads(8, 8, 1)]
@@ -130,35 +140,19 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	}
 
 	// Fetch 3x3 finer samples
-	float2 depths[9];
+	float2 depths[9], depthCoarsers[9], depthCoarsersE[9];
 	Fetch3x3(depths, g_txDepth, DTid);
 
-	// Gather 2x2 coarser samples
-	const float2x4 gathers = float2x4(
-		g_txDepthCoarser.GatherRed(g_sampler, uv),
-		g_txDepthCoarserE.GatherGreen(g_sampler, uv)
-		);
-	const float4x2 coarserDepths = transpose(gathers);
+	const uint2 posCC = DTid / 2; // Center texcoord position of the coarser layer
+	Fetch3x3(depthCoarsers, g_txDepthCoarser, posCC);
+	Fetch3x3(depthCoarsersE, g_txDepthCoarserE, posCC);
 
-	// Calculate domain weights for bilinear interpolation
-	const float2 domain = BilinearDomainLoc(g_txDepthCoarser, uv);
-	const float2 domainInv = 1.0 - domain;
-	// |3|2|
-	// |0|1|
-	const float2 domains[] =
-	{
-		float2(domain.x, domainInv.y),
-		float2(domainInv.x, domainInv.y),
-		float2(domainInv.x, domain.y),
-		float2(domain.x, domain.y),
-	};
-	const float4 wb =
-	{
-		domainInv.x * domain.y,
-		domain.x * domain.y,
-		domain.x * domainInv.y,
-		domainInv.x * domainInv.y
-	};
+	[unroll]
+	for (uint i = 0; i < 9; ++i) depthCoarsers[i].y = depthCoarsersE[i].y;
+
+	// Calculate domain weights for 3x3 linear interpolation
+	float wd[9];
+	DomainWeights(wd, DTid);
 
 	// Assign center samples
 	const float2 depthC = depths[4];
@@ -166,58 +160,75 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	// Calculate Gaussian weight
 	const float blurRadius = GetBlurRadius(g_txDepth0, depthC.x, g_proj, g_projI);
 #ifdef _CALC_COARSE_WEIGHT_DIRECTLY_
-	const float w = 1.0 - MipGaussianBlendWeightCoarse(g_level, blurRadius);
+	const float wc = MipGaussianBlendWeightCoarse(g_level, blurRadius);
+	float wf = 1.0;
 #else
-	const float w = MipGaussianBlendWeight(g_level, blurRadius);
+	float wf = MipGaussianBlendWeight(g_level, blurRadius);
+	float wc = 1.0 - wf;
+	wf = 1.0;
 #endif
 
-	float src = depthC.x; // Fallback to the center sample
-	float ws;
+	float2 filtered = float2(depthC.x, 1.0); // Fallback to the center sample
+	float2 dst = 0.0;
 
-	uint i;
 #ifdef _MULTI_FINER_
 	// Apply 3x3 finer samples as fallback
-	src = 0.0;
-	ws = 0.0;
-
 	[unroll]
 	for (i = 0; i < 9; ++i)
 	{
-		const float2 depth = depths[i];
+		if (i != 4)
+		{
+			const float2 depth = depths[i];
 
-		// Calculate edge-stopping function
-		float w = depth.y < 1.0;
-		w *= DepthWeight(depthC.y, depth.y, SIGMA_Z);
-		w = pow(w, 0.333);
+			// Calculate edge-stopping function
+			float fr = depth.y < 1.0;
+			fr *= DepthWeight(depthC.y, depth.y, SIGMA_Z);
+			fr = pow(fr, 0.333);
 
-		// 3x3 bilateral filter
-		src += depth.x * w;
-		ws += w;
+			// 3x3 bilateral filter
+			filtered.x += depth.x * fr;
+			filtered.y += fr;
+		}
 	}
 
-	src = ws > 0.0 ? src / ws : depthC.x;
+	filtered.x = filtered.y > 0.0 ? filtered.x / filtered.y : depthC.x;
 #endif
 
-	float dst = 0.0;
-	ws = 0.0;
+		i = 0;
 
 	[unroll]
-	for (i = 0; i < 4; ++i)
+	for (int y = -1; y <= 1; ++y)
 	{
-		const float2 depth = coarserDepths[i];
+		[unroll]
+		for (int x = -1; x <= 1; ++x)
+		{
+			const float2 depth = depthCoarsers[i];
+			float w = wc;
 
-		// Calculate edge-stopping function
-		float we = depth.y < 1.0;
-		we *= DepthWeight(depthC.y, depth.y, SIGMA_Z);
-		we = pow(we, 0.333);
+			// Calculate edge-stopping function
+			float fr = depth.y < 1.0;
+			fr *= DepthWeight(depthC.y, depth.y, SIGMA_Z);
+			fr = pow(fr, 0.333);
 
-		// Apply the convolution weight with edge-stopping function
-		const float coarser = lerp(src, depth.x, we);
-		dst += lerp(coarser * we, depthC.x, w) * wb[i];
-		ws += lerp(we, 1.0, w) * wb[i];
+			// Apply the coarser weight with edge-stopping function and the sample weight
+			float coarser = depth.x;
+			coarser = lerp(filtered.x, coarser, fr);
+
+			w *= wd[i];
+			wf -= w;
+			w *= fr;
+
+			dst.x += coarser * w;
+			dst.y += w;
+			++i;
+		}
 	}
 
-	dst = ws > 0.0 ? dst / ws : src;
+	// Center sample
+	dst.x += depthC.x * wf;
+	dst.y += wf;
 
-	g_rwDst[DTid] = dst;
+	dst.x = dst.y > 0.0 ? dst.x / dst.y : filtered.x;
+
+	g_rwDst[DTid] = dst.x;
 }

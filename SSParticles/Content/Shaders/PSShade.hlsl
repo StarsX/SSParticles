@@ -36,5 +36,8 @@ float4 main(PSIn input) : SV_TARGET
 	float3 scatter = exp(-thickness / 48.0);
 	scatter = lerp(sqrt(NoL + 0.4) * float3(0.24, 0.4, 0.56), refraction, scatter);
 
-	return float4(lerp(scatter, spec, fresnel), 1.0);
+	float3 color = lerp(scatter, spec, fresnel);
+	//color /= color + 0.5;
+
+	return float4(color, 1.0);
 }

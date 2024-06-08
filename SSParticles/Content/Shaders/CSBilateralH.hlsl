@@ -47,6 +47,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 		// range domain
 		w *= z < 1.0;
 		w *= DepthWeight(depth, z, SIGMA_Z);
+		w = pow(w, 0.333);
 
 		sum.x += z * w;
 		sum.y += w;

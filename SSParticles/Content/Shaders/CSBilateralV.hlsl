@@ -43,6 +43,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 
 		// spatial domain
 		float w = Gaussian(i, radius);
+		w = pow(w, 0.333);
 
 		// range domain
 		w *= z < 1.0;

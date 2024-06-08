@@ -4,6 +4,7 @@
 
 #pragma once
 
+#define ENABLE_BILATERAL_GT
 #include "Helper/XUSG-EZ.h"
 #include "ParticleData.h"
 
@@ -12,6 +13,9 @@ class Renderer
 public:
 	enum FilterMethod : uint8_t
 	{
+#ifdef ENABLE_BILATERAL_GT
+		BILATERAL_GT,
+#endif
 		BILATERAL_SEP,
 		BILATERAL_MIP,
 

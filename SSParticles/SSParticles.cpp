@@ -548,6 +548,11 @@ double SSParticles::CalculateFrameStats(float* pTimeStep)
 		windowText << L"    [F] ";
 		switch (m_filterMethod)
 		{
+#ifdef ENABLE_BILATERAL_GT
+		case Renderer::BILATERAL_GT:
+			windowText << L"Bilateral ground truth";
+			break;
+#endif
 		case Renderer::BILATERAL_MIP:
 			windowText << L"Bilateral MIP";
 			break;

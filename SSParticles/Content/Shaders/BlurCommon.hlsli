@@ -2,7 +2,7 @@
 // Copyright (c) XU, Tianchen. All rights reserved.
 //--------------------------------------------------------------------------------------
 
-#define RADIUS 16
+#define RADIUS 24
 #define PI 3.141592654
 #define SIGMA_Z 96.0
 
