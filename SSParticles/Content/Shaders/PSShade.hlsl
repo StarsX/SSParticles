@@ -38,6 +38,7 @@ float4 main(PSIn input) : SV_TARGET
 
 	float3 color = lerp(scatter, spec, fresnel);
 	//color /= color + 0.5;
+	//color = NoL * float3(0.24, 0.6, 1.0);
 
 	return float4(color, 1.0);
 }

@@ -23,6 +23,33 @@ float2 BilinearDomainLoc(Texture2D<float2> tx, float2 uv)
 }
 
 //--------------------------------------------------------------------------------------
+// Calculate domain weights for bilinear interpolation
+//--------------------------------------------------------------------------------------
+float4 BilinearDomainWeights(Texture2D<float2> tex, float2 uv)
+{
+	float2 texSize;
+	tex.GetDimensions(texSize.x, texSize.y);
+
+	const float2 domain = frac(uv * texSize - 0.5);
+	const float2 domainInv = 1.0 - domain;
+	// |3|2|
+	// |0|1|
+	const float2 domains[] =
+	{
+		float2(domain.x, domainInv.y),
+		float2(domainInv.x, domainInv.y),
+		float2(domainInv.x, domain.y),
+		float2(domain.x, domain.y),
+	};
+
+	return float4(
+		domainInv.x * domain.y,
+		domain.x * domain.y,
+		domain.x * domainInv.y,
+		domainInv.x * domainInv.y);
+}
+
+//--------------------------------------------------------------------------------------
 // Compute shader
 //--------------------------------------------------------------------------------------
 [numthreads(8, 8, 1)]
@@ -49,42 +76,25 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	// Get fallback samples with point (nearest) sampler
 	const float2 src0 = g_txDepth.SampleLevel(g_sampler, uv, 0.0);
 
-	const float2 domain = BilinearDomainLoc(g_txDepth, uv);
-	const float2 domainInv = 1.0 - domain;
-	// |3|2|
-	// |0|1|
-	const float2 domains[] =
-	{
-		float2(domain.x, domainInv.y),
-		float2(domainInv.x, domainInv.y),
-		float2(domainInv.x, domain.y),
-		float2(domain.x, domain.y),
-	};
-	const float4 wb =
-	{
-		domainInv.x * domain.y,
-		domain.x * domain.y,
-		domain.x * domainInv.y,
-		domainInv.x * domainInv.y
-	};
+	// Calculate domain weights for bilinear interpolation
+	const float4 wb = BilinearDomainWeights(g_txDepth, uv);
 
-	// Calculate the major attribute
-	float z = 0.0, ws = 0.0;
+	// Select the major attributes (normal, depth, and roughness)
+	static const uint2x2 ms = { 1, 0, 2, 3 };
+	const uint rm = ms[DTid.y & 1][DTid.x & 1];
+	uint m = 0;
 
 	[unroll]
 	for (uint i = 0; i < 4; ++i)
 	{
-		const float w = (srcs[i].y < 1.0) * wb[i]; // Mask out the background (depth = 1)
-		z += srcs[i].y * w;
-		ws += w;
+		m = srcs[i].y < 1.0 ? i : m;
+		if (m == rm) break;
 	}
 
-	z /= ws;
+	const float z = srcs[m].y;
 
-	// Down sampling with 2x2 bilateral filtering
-	float2 dst = float2(0.0, 0.0);
-	float w_max = 0.0;
-	ws = 0.0;
+	// 2x2 down sampling
+	float2 dst = 0.0;
 
 	[unroll]
 	for (i = 0; i < 4; ++i)
@@ -94,18 +104,12 @@ void main(uint2 DTid : SV_DispatchThreadID)
 		w *= DepthWeight(z, srcs[i].y, SIGMA_Z);
 		w *= wb[i];
 
-		if (w > w_max)
-		{
-			dst.y = srcs[i].y;
-			w_max = w;
-		}
-
 		dst.x += srcs[i].x * w;
-		ws += w;
+		dst.y += w;
 	}
 
 	// Fallback for all-zero weights
-	dst.x = ws > 0.0 ? dst.x / ws : src0.x;
+	dst.x = dst.y > 0.0 ? dst.x / dst.y : src0.x;
 
-	g_rwDepth[DTid] = dst;
+	g_rwDepth[DTid] = float2(dst.x, z);
 }

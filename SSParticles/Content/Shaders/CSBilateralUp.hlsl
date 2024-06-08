@@ -4,9 +4,9 @@
 
 #include "BlurCommon.hlsli"
 
-#ifndef _CALC_COARSE_WEIGHT_DIRECTLY_
-#define _CALC_COARSE_WEIGHT_DIRECTLY_
-#endif
+//#ifndef _CALC_COARSE_WEIGHT_DIRECTLY_
+//#define _CALC_COARSE_WEIGHT_DIRECTLY_
+//#endif
 
 #ifndef _MULTI_FINER_
 #define _MULTI_FINER_
@@ -104,16 +104,16 @@ void DomainWeights(out float wd[9], uint2 idx)
 	uint i = 0;
 
 	[unroll]
-		for (int y = -1; y <= 1; ++y)
+	for (int y = -1; y <= 1; ++y)
+	{
+		[unroll]
+		for (int x = -1; x <= 1; ++x)
 		{
-			[unroll]
-				for (int x = -1; x <= 1; ++x)
-				{
-					const float2 d = (6 - abs(int2(x, y) * 4 - offset)) / 9.0;
-					wd[i] = d.x * d.y;
-					++i;
-				}
+			const float2 d = min(6 - abs(int2(x, y) * 4 - offset), 4.0) / 8.0;
+			wd[i] = d.x * d.y;
+			++i;
 		}
+	}
 }
 
 //--------------------------------------------------------------------------------------
@@ -183,7 +183,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 			// Calculate edge-stopping function
 			float fr = depth.y < 1.0;
 			fr *= DepthWeight(depthC.y, depth.y, SIGMA_Z);
-			fr = pow(fr, 0.333);
+			//fr = pow(fr, 0.333);
 
 			// 3x3 bilateral filter
 			filtered.x += depth.x * fr;
@@ -194,7 +194,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	filtered.x = filtered.y > 0.0 ? filtered.x / filtered.y : depthC.x;
 #endif
 
-		i = 0;
+	i = 0;
 
 	[unroll]
 	for (int y = -1; y <= 1; ++y)
@@ -208,11 +208,11 @@ void main(uint2 DTid : SV_DispatchThreadID)
 			// Calculate edge-stopping function
 			float fr = depth.y < 1.0;
 			fr *= DepthWeight(depthC.y, depth.y, SIGMA_Z);
-			fr = pow(fr, 0.333);
+			//fr = pow(fr, 0.333);
 
 			// Apply the coarser weight with edge-stopping function and the sample weight
 			float coarser = depth.x;
-			coarser = lerp(filtered.x, coarser, fr);
+			//coarser = lerp(filtered.x, coarser, fr);
 
 			w *= wd[i];
 			wf -= w;
