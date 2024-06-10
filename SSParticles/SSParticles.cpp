@@ -248,6 +248,8 @@ void SSParticles::OnDestroy()
 
 void SSParticles::OnWindowSizeChanged(int width, int height)
 {
+	if (height > 1080) return;
+
 	if (!Win32Application::GetHwnd())
 	{
 		throw std::exception("Call SetWindow with a valid Win32 window handle");
@@ -397,6 +399,8 @@ void SSParticles::ParseCommandLineArgs(wchar_t* argv[], int argc)
 {
 	DXFramework::ParseCommandLineArgs(argv, argc);
 
+	auto specifyWindowSize = 0;
+
 	for (auto i = 1; i < argc; ++i)
 	{
 		if (wcsncmp(argv[i], L"-particles", wcslen(argv[i])) == 0 ||
@@ -417,6 +421,16 @@ void SSParticles::ParseCommandLineArgs(wchar_t* argv[], int argc)
 		{
 			if (i + 1 < argc) m_envFileName = argv[++i];
 		}
+		else if ((wcsncmp(argv[i], L"-width", wcslen(argv[i])) == 0 ||
+			wcsncmp(argv[i], L"/width", wcslen(argv[i])) == 0 ||
+			wcsncmp(argv[i], L"-w", wcslen(argv[i])) == 0 ||
+			wcsncmp(argv[i], L"/w", wcslen(argv[i])) == 0) && i + 1 < argc)
+			m_width = stoul(argv[++i]);
+		else if ((wcsncmp(argv[i], L"-height", wcslen(argv[i])) == 0 ||
+			wcsncmp(argv[i], L"/height", wcslen(argv[i])) == 0 ||
+			wcsncmp(argv[i], L"-h", wcslen(argv[i])) == 0 ||
+			wcsncmp(argv[i], L"/h", wcslen(argv[i])) == 0) && i + 1 < argc)
+			m_height = stoul(argv[++i]);
 	}
 }
 
