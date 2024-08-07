@@ -82,6 +82,9 @@ float MipGaussianBlendWeightCoarse(uint level, int radius)
 //--------------------------------------------------------------------------------------
 void Fetch3x3(out float2 samples3x3[9], Texture2D<float2> txSrc, uint2 pos)
 {
+	int2 texSize;
+	txSrc.GetDimensions(texSize.x, texSize.y);
+
 	uint i = 0;
 	[unroll]
 	for (int y = -1; y <= 1; ++y)
@@ -89,7 +92,7 @@ void Fetch3x3(out float2 samples3x3[9], Texture2D<float2> txSrc, uint2 pos)
 		[unroll]
 		for (int x = -1; x <= 1; ++x)
 		{
-			const uint2 idx = (int2)pos + int2(x, y);
+			const int2 idx = clamp((int2)pos + int2(x, y), 0, texSize - 1);
 			samples3x3[i++] = txSrc[idx];
 		}
 	}

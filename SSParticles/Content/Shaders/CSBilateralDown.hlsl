@@ -4,6 +4,8 @@
 
 #include "BlurCommon.hlsli"
 
+#define _ACCURACY_MAJOR_
+
 //--------------------------------------------------------------------------------------
 // Textures
 //--------------------------------------------------------------------------------------
@@ -80,9 +82,44 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	const float4 wb = BilinearDomainWeights(g_txDepth, uv);
 
 	// Select the major attributes (normal, depth, and roughness)
+	uint m = 0;
+	float z = 0.0;
+#ifdef _ACCURACY_MAJOR_
+	float ws = 0.0;
+
+	// Calculate the average attribute values
+	[unroll]
+	for (uint i = 0; i < 4; ++i)
+	{
+		if (srcs[i].y < 1.0)
+		{
+			z += srcs[m].y;
+			ws += 1.0;
+		}
+	}
+
+	[unroll]
+	for (i = 0; i < 4; ++i) z /= ws;
+
+	// Select the max-weighted attributes as the major attributes
+	ws = 0.0;
+	[unroll]
+	for (i = 0; i < 4; ++i)
+	{
+		// Calculate simplified edge-stopping function  for comparison (no need to normalize)
+		float w = srcs[i].y < 1.0;
+		w *= DepthWeight(z, srcs[i].y, 1.0);
+		w *= wb[i];
+
+		if (w > ws)
+		{
+			m = i;
+			ws = w;
+		}
+	}
+#else
 	static const uint2x2 ms = { 1, 0, 2, 3 };
 	const uint rm = ms[DTid.y & 1][DTid.x & 1];
-	uint m = 0;
 
 	[unroll]
 	for (uint i = 0; i < 4; ++i)
@@ -90,8 +127,9 @@ void main(uint2 DTid : SV_DispatchThreadID)
 		m = srcs[i].y < 1.0 ? i : m;
 		if (m == rm) break;
 	}
+#endif
 
-	const float z = srcs[m].y;
+	z = srcs[m].y;
 
 	// 2x2 down sampling
 	float2 dst = 0.0;
