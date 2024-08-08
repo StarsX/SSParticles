@@ -98,23 +98,24 @@ void main(uint2 DTid : SV_DispatchThreadID)
 		}
 	}
 
-	[unroll]
-	for (i = 0; i < 4; ++i) z /= ws;
+	z /= ws;
 
 	// Select the max-weighted attributes as the major attributes
 	ws = 0.0;
 	[unroll]
 	for (i = 0; i < 4; ++i)
 	{
-		// Calculate simplified edge-stopping function  for comparison (no need to normalize)
-		float w = srcs[i].y < 1.0;
-		w *= DepthWeight(z, srcs[i].y, 1.0);
-		w *= wb[i];
-
-		if (w > ws)
+		if (srcs[i].y < 1.0)
 		{
-			m = i;
-			ws = w;
+			// Calculate simplified edge-stopping function  for comparison (no need to normalize)
+			float w = wb[i];
+			w *= DepthWeight(z, srcs[i].y, 1.0);
+
+			if (w > ws)
+			{
+				m = i;
+				ws = w;
+			}
 		}
 	}
 #else
@@ -137,13 +138,15 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	[unroll]
 	for (i = 0; i < 4; ++i)
 	{
-		// Calculate edge-stopping function
-		float w = srcs[i].y < 1.0;
-		w *= DepthWeight(z, srcs[i].y, SIGMA_Z);
-		w *= wb[i];
+		if (srcs[i].y < 1.0)
+		{
+			// Calculate edge-stopping function
+			float w = wb[i];
+			w *= DepthWeight(z, srcs[i].y, SIGMA_Z);
 
-		dst.x += srcs[i].x * w;
-		dst.y += w;
+			dst.x += srcs[i].x * w;
+			dst.y += w;
+		}
 	}
 
 	// Fallback for all-zero weights

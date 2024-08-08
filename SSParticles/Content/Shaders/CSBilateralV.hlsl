@@ -21,6 +21,7 @@ cbuffer cbPerFrame
 RWTexture2D<float> g_rwDepth;
 
 Texture2D<float> g_txDepth;
+Texture2D<float> g_txDepthH;
 
 [numthreads(8, 8, 1)]
 void main(uint2 DTid : SV_DispatchThreadID)
@@ -39,7 +40,7 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	{
 		const uint2 idx = uint2(DTid.x, (int)DTid.y + i);
 
-		const float z = g_txDepth[idx];
+		const float z = g_txDepthH[idx];
 
 		// spatial domain
 		float w = Gaussian(i, radius);

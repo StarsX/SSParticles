@@ -101,6 +101,6 @@ protected:
 	std::vector<uint32_t>		m_numParticles;
 	uint32_t					m_numFrames;
 	uint32_t					m_particleFrameIdx;
-	uint8_t						m_numMips;
+	uint8_t						m_numMipLevels;
 	char m_fps;
 };

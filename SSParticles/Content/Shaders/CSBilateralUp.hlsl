@@ -199,34 +199,27 @@ void main(uint2 DTid : SV_DispatchThreadID)
 	filtered.x = filtered.y > 0.0 ? filtered.x / filtered.y : depthC.x;
 #endif
 
-	i = 0;
-
 	[unroll]
-	for (int y = -1; y <= 1; ++y)
+	for (i = 0; i < 9; ++i)
 	{
-		[unroll]
-		for (int x = -1; x <= 1; ++x)
-		{
-			const float2 depth = depthCoarsers[i];
-			float w = wc;
+		const float2 depth = depthCoarsers[i];
+		float w = wc;
 
-			// Calculate edge-stopping function
-			float fr = depth.y < 1.0;
-			fr *= DepthWeight(depthC.y, depth.y, SIGMA_Z);
-			//fr = pow(fr, 0.333);
+		// Calculate edge-stopping function
+		float fr = depth.y < 1.0;
+		fr *= DepthWeight(depthC.y, depth.y, SIGMA_Z);
+		//fr = pow(fr, 0.333);
 
-			// Apply the coarser weight with edge-stopping function and the sample weight
-			float coarser = depth.x;
-			//coarser = lerp(filtered.x, coarser, fr);
+		// Apply the coarser weight with edge-stopping function and the sample weight
+		float coarser = depth.x;
+		//coarser = lerp(filtered.x, coarser, fr);
 
-			w *= wd[i];
-			wf -= w;
-			w *= fr;
+		w *= wd[i];
+		wf -= w;
+		w *= fr;
 
-			dst.x += coarser * w;
-			dst.y += w;
-			++i;
-		}
+		dst.x += coarser * w;
+		dst.y += w;
 	}
 
 	// Center sample

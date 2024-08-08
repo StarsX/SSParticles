@@ -95,8 +95,8 @@ bool Renderer::SetViewport(const Device* pDevice, uint32_t width, uint32_t heigh
 	m_viewport = XMUINT2(width, height);
 
 	// Create resources and pipelines
-	m_numMips = CalculateMipLevels(m_viewport.x, m_viewport.y);
-	assert(m_numMips >= 2);
+	m_numMipLevels = CalculateMipLevels(m_viewport.x, m_viewport.y);
+	assert(m_numMipLevels >= 2);
 
 	// Create output views
 	m_depth = DepthStencil::MakeUnique();
@@ -109,14 +109,14 @@ bool Renderer::SetViewport(const Device* pDevice, uint32_t width, uint32_t heigh
 
 	m_scratch = Texture::MakeUnique();
 	XUSG_N_RETURN(m_scratch->Create(pDevice, width, height, Format::R32G32_FLOAT, 1,
-		ResourceFlag::ALLOW_UNORDERED_ACCESS, m_numMips, 1, false, MemoryFlag::NONE, L"Scratch"), false);
+		ResourceFlag::ALLOW_UNORDERED_ACCESS, m_numMipLevels, 1, false, MemoryFlag::NONE, L"Scratch"), false);
 
 	m_filtered = Texture::MakeUnique();
 	XUSG_N_RETURN(m_filtered->Create(pDevice, width, height, Format::R32_FLOAT, 1,
-		ResourceFlag::ALLOW_UNORDERED_ACCESS, m_numMips, 1, false, MemoryFlag::NONE, L"FilteredDepth"), false);
+		ResourceFlag::ALLOW_UNORDERED_ACCESS, m_numMipLevels, 1, false, MemoryFlag::NONE, L"FilteredDepth"), false);
 
 	// Create constant buffers
-	const uint8_t numPasses = m_numMips - 1;
+	const uint8_t numPasses = m_numMipLevels - 1;
 	m_cbPerPass = ConstantBuffer::MakeUnique();
 	XUSG_N_RETURN(m_cbPerPass->Create(pDevice, sizeof(uint32_t) * numPasses,
 		numPasses, nullptr, MemoryType::UPLOAD, MemoryFlag::NONE, L"CBPerPass"), false);
@@ -367,9 +367,14 @@ void Renderer::bilateralV(EZ::CommandList* pCommandList, uint8_t frameIndex)
 	const auto cbv = EZ::GetCBV(m_cbPerFrame.get(), frameIndex);
 	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::CBV, 0, 1, &cbv);
 
-	// Set SRV
-	const auto srv = EZ::GetSRV(m_scratch.get());
-	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, 1, &srv);
+	// Set SRVs
+	const EZ::ResourceView srvs[] =
+	{
+		EZ::GetSRV(m_depth.get()),
+		EZ::GetSRV(m_scratch.get())
+	};
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0,
+		static_cast<uint32_t>(size(srvs)), srvs);
 
 	// Dispatch grid
 	pCommandList->Dispatch(XUSG_DIV_UP(m_viewport.x, 8), XUSG_DIV_UP(m_viewport.y, 8), 1);
@@ -385,7 +390,7 @@ void Renderer::bilateralDown(EZ::CommandList* pCommandList)
 	const auto sampler = POINT_CLAMP;
 	pCommandList->SetSamplerStates(Shader::Stage::CS, 0, 1, &sampler);
 
-	for (uint8_t i = 1; i < m_numMips; ++i)
+	for (uint8_t i = 1; i < m_numMipLevels; ++i)
 	{
 		// Set UAV
 		const auto uav = EZ::GetUAV(m_scratch.get(), i);
@@ -412,7 +417,7 @@ void Renderer::bilateralUp(EZ::CommandList* pCommandList, uint8_t frameIndex)
 	const auto sampler = LINEAR_CLAMP;
 	pCommandList->SetSamplerStates(Shader::Stage::CS, 0, 1, &sampler);
 
-	const uint8_t numPasses = m_numMips - 1;
+	const uint8_t numPasses = m_numMipLevels - 1;
 	for (uint8_t i = 0; i < numPasses; ++i)
 	{
 		const auto c = numPasses - i;
