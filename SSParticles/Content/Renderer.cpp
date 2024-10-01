@@ -95,7 +95,7 @@ bool Renderer::SetViewport(const Device* pDevice, uint32_t width, uint32_t heigh
 	m_viewport = XMUINT2(width, height);
 
 	// Create resources and pipelines
-	m_numMipLevels = CalculateMipLevels(m_viewport.x, m_viewport.y);
+	m_numMipLevels = Texture::CalculateMipLevels(m_viewport.x, m_viewport.y);
 	assert(m_numMipLevels >= 2);
 
 	// Create output views
@@ -397,7 +397,7 @@ void Renderer::bilateralDown(EZ::CommandList* pCommandList)
 		pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav);
 
 		// Set SRV
-		const auto srv = EZ::GetSRVLevel(m_scratch.get(), i - 1);
+		const auto srv = EZ::GetSRV(m_scratch.get(), i - 1, true);
 		pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, 1, &srv);
 
 		// Dispatch grid
@@ -438,10 +438,10 @@ void Renderer::bilateralUp(EZ::CommandList* pCommandList, uint8_t frameIndex)
 		// Set SRVs
 		const EZ::ResourceView srvs[] =
 		{
-			EZ::GetSRVLevel(i > 0 ? m_filtered.get() : m_scratch.get(), c),
-			EZ::GetSRVLevel(m_scratch.get(), c),
-			EZ::GetSRVLevel(m_scratch.get(), level),
-			EZ::GetSRVLevel(m_scratch.get(), 0)
+			EZ::GetSRV(i > 0 ? m_filtered.get() : m_scratch.get(), c, true),
+			EZ::GetSRV(m_scratch.get(), c, true),
+			EZ::GetSRV(m_scratch.get(), level, true),
+			EZ::GetSRV(m_scratch.get(), 0, true)
 		};
 		pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, static_cast<uint32_t>(size(srvs)), srvs);
 
