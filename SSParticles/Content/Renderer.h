@@ -93,7 +93,6 @@ protected:
 	XUSG::DepthStencil::uptr	m_depth;
 
 	XUSG::ConstantBuffer::uptr	m_cbPerFrame;
-	XUSG::ConstantBuffer::uptr	m_cbPerPass;
 
 	XUSG::ShaderLib::uptr		m_shaderLib;
 	XUSG::Blob m_shaders[NUM_SHADER];

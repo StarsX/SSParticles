@@ -115,14 +115,6 @@ bool Renderer::SetViewport(const Device* pDevice, uint32_t width, uint32_t heigh
 	XUSG_N_RETURN(m_filtered->Create(pDevice, width, height, Format::R32_FLOAT, 1,
 		ResourceFlag::ALLOW_UNORDERED_ACCESS, m_numMipLevels, 1, false, MemoryFlag::NONE, L"FilteredDepth"), false);
 
-	// Create constant buffers
-	const uint8_t numPasses = m_numMipLevels - 1;
-	m_cbPerPass = ConstantBuffer::MakeUnique();
-	XUSG_N_RETURN(m_cbPerPass->Create(pDevice, sizeof(uint32_t) * numPasses,
-		numPasses, nullptr, MemoryType::UPLOAD, MemoryFlag::NONE, L"CBPerPass"), false);
-	for (uint8_t i = 0; i < numPasses; ++i)
-		*static_cast<uint32_t*>(m_cbPerPass->Map(i)) = numPasses - (i + 1);
-
 	return true;
 }
 
@@ -413,6 +405,10 @@ void Renderer::bilateralUp(EZ::CommandList* pCommandList, uint8_t frameIndex)
 	// Set pipeline state
 	pCommandList->SetComputeShader(m_shaders[CS_BILATERAL_UP]);
 
+	// Set CBV
+	const auto cbv = EZ::GetCBV(m_cbPerFrame.get(), frameIndex);
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::CBV, 0, 1, &cbv);
+
 	// Set sampler
 	const auto sampler = LINEAR_CLAMP;
 	pCommandList->SetSamplerStates(Shader::Stage::CS, 0, 1, &sampler);
@@ -427,13 +423,8 @@ void Renderer::bilateralUp(EZ::CommandList* pCommandList, uint8_t frameIndex)
 		const auto uav = EZ::GetUAV(m_filtered.get(), level);
 		pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav);
 
-		// Set CBV
-		const EZ::ResourceView cbvs[] =
-		{
-			EZ::GetCBV(m_cbPerFrame.get(), frameIndex),
-			EZ::GetCBV(m_cbPerPass.get(), i)
-		};
-		pCommandList->SetResources(Shader::Stage::CS, DescriptorType::CBV, 0, static_cast<uint32_t>(size(cbvs)), cbvs);
+		// Set constant
+		pCommandList->SetCompute32BitConstant(level);
 
 		// Set SRVs
 		const EZ::ResourceView srvs[] =

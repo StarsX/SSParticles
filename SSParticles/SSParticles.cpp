@@ -126,9 +126,14 @@ void SSParticles::LoadAssets()
 	XUSG_N_RETURN(pCommandList->Create(m_device.get(), 0, CommandListType::DIRECT,
 		m_commandAllocators[m_frameIndex].get(), nullptr), ThrowIfFailed(E_FAIL));
 
+	uint32_t max32BitConstants[Shader::Stage::NUM_STAGE] = {};
+	uint32_t constantSlots[Shader::Stage::NUM_STAGE] = {};
+	max32BitConstants[Shader::Stage::CS] = 1;
+	constantSlots[Shader::Stage::CS] = 1;
 	m_commandListEZ = EZ::CommandList::MakeUnique();
-	XUSG_N_RETURN(m_commandListEZ->Create(pCommandList, 4, 1024),
-		ThrowIfFailed(E_FAIL));
+	XUSG_N_RETURN(m_commandListEZ->Create(pCommandList, 4, 1024,
+		nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+		max32BitConstants, constantSlots), ThrowIfFailed(E_FAIL));
 
 	vector<Resource::uptr> uploaders(0);	
 	{
