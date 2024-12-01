@@ -46,6 +46,13 @@ public:
 	virtual void ParseCommandLineArgs(wchar_t* argv[], int argc);
 
 private:
+	enum DeviceType : uint8_t
+	{
+		DEVICE_DISCRETE,
+		DEVICE_UMA,
+		DEVICE_WARP
+	};
+
 	static const uint8_t FrameCount = Renderer::FrameCount;
 
 	XUSG::com_ptr<IDXGIFactory5>	m_factory;
@@ -74,10 +81,11 @@ private:
 	uint64_t	m_fenceValues[FrameCount];
 
 	// Application state
+	DeviceType	m_deviceType;
+	Renderer::FilterMethod m_filterMethod;
+	StepTimer	m_timer;
 	bool		m_showFPS;
 	bool		m_isPaused;
-	StepTimer	m_timer;
-	Renderer::FilterMethod m_filterMethod;
 
 	// User camera interactions
 	bool m_tracking;
