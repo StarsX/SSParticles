@@ -429,46 +429,57 @@ void SSParticles::OnMouseLeave()
 
 void SSParticles::ParseCommandLineArgs(wchar_t* argv[], int argc)
 {
-	DXFramework::ParseCommandLineArgs(argv, argc);
+	const auto str_tolower = [](wstring s)
+	{
+		transform(s.begin(), s.end(), s.begin(), [](wchar_t c) { return towlower(c); });
 
-	auto specifyWindowSize = 0;
+		return s;
+	};
+
+	const auto isArgMatched = [&argv, &str_tolower](int i, const wchar_t* paramName)
+	{
+		const auto& arg = argv[i];
+
+		return (arg[0] == L'-' || arg[0] == L'/')
+			&& str_tolower(&arg[1]) == str_tolower(paramName);
+	};
+
+	const auto hasNextArgValue = [&argv, &argc](int i)
+	{
+		const auto& arg = argv[i + 1];
+
+		return i + 1 < argc && arg[0] != L'/' &&
+			(arg[0] != L'-' || (arg[1] >= L'0' && arg[1] <= L'9') || arg[1] == L'.');
+	};
+
+	DXFramework::ParseCommandLineArgs(argv, argc);
 
 	for (auto i = 1; i < argc; ++i)
 	{
-		if (wcsncmp(argv[i], L"-warp", wcslen(argv[i])) == 0 ||
-			wcsncmp(argv[i], L"/warp", wcslen(argv[i])) == 0)
-			m_deviceType = DEVICE_WARP;
-		else if (wcsncmp(argv[i], L"-uma", wcslen(argv[i])) == 0 ||
-			wcsncmp(argv[i], L"/uma", wcslen(argv[i])) == 0)
-			m_deviceType = DEVICE_UMA;
-		else if (wcsncmp(argv[i], L"-particles", wcslen(argv[i])) == 0 ||
-			wcsncmp(argv[i], L"/particles", wcslen(argv[i])) == 0 ||
-			wcsncmp(argv[i], L"-p", wcslen(argv[i])) == 0 ||
-			wcsncmp(argv[i], L"/p", wcslen(argv[i])) == 0)
+		if (isArgMatched(i, L"warp")) m_deviceType = DEVICE_WARP;
+		else if (isArgMatched(i, L"uma")) m_deviceType = DEVICE_UMA;
+		else if (isArgMatched(i, L"w") || isArgMatched(i, L"width"))
 		{
-			if (i + 1 < argc) m_numFrames = _wtoi(argv[++i]);
-			if (i + 1 < argc)
+			if (hasNextArgValue(i)) i += swscanf_s(argv[i + 1], L"%u", &m_width);
+		}
+		else if (isArgMatched(i, L"h") || isArgMatched(i, L"height"))
+		{
+			if (hasNextArgValue(i)) i += swscanf_s(argv[i + 1], L"%u", &m_height);
+		}
+		else if (isArgMatched(i, L"p") || isArgMatched(i, L"particles"))
+		{
+			if (hasNextArgValue(i)) i += swscanf_s(argv[i + 1], L"%u", &m_numFrames);
+			if (hasNextArgValue(i))
 			{
 				m_particleFileNamePrefix.resize(wcslen(argv[++i]));
 				for (size_t j = 0; j < m_particleFileNamePrefix.size(); ++j)
 					m_particleFileNamePrefix[j] = static_cast<char>(argv[i][j]);
 			}
 		}
-		else if (wcsncmp(argv[i], L"-env", wcslen(argv[i])) == 0 ||
-			wcsncmp(argv[i], L"/env", wcslen(argv[i])) == 0)
+		else if (isArgMatched(i, L"env"))
 		{
-			if (i + 1 < argc) m_envFileName = argv[++i];
+			if (hasNextArgValue(i)) m_envFileName = argv[++i];
 		}
-		else if ((wcsncmp(argv[i], L"-width", wcslen(argv[i])) == 0 ||
-			wcsncmp(argv[i], L"/width", wcslen(argv[i])) == 0 ||
-			wcsncmp(argv[i], L"-w", wcslen(argv[i])) == 0 ||
-			wcsncmp(argv[i], L"/w", wcslen(argv[i])) == 0) && i + 1 < argc)
-			m_width = stoul(argv[++i]);
-		else if ((wcsncmp(argv[i], L"-height", wcslen(argv[i])) == 0 ||
-			wcsncmp(argv[i], L"/height", wcslen(argv[i])) == 0 ||
-			wcsncmp(argv[i], L"-h", wcslen(argv[i])) == 0 ||
-			wcsncmp(argv[i], L"/h", wcslen(argv[i])) == 0) && i + 1 < argc)
-			m_height = stoul(argv[++i]);
 	}
 }
 

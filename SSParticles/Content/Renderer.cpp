@@ -5,9 +5,7 @@
 #include "DXFrameworkHelper.h"
 #include "Renderer.h"
 #include "ParticleBin.h"
-#define _INDEPENDENT_DDS_LOADER_
-#include "Advanced/XUSGDDSLoader.h"
-#undef _INDEPENDENT_DDS_LOADER_
+#include "Advanced/XUSGTextureLoader.h"
 
 using namespace std;
 using namespace DirectX;
