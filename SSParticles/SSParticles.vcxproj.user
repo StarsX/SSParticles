@@ -9,5 +9,6 @@
     <LocalDebuggerWorkingDirectory>$(ProjectDir)..\Bin\</LocalDebuggerWorkingDirectory>
     <DebuggerFlavor>WindowsLocalDebugger</DebuggerFlavor>
     <LocalDebuggerCommandArguments>-p 480 D:\Courses\SSParticles\RealFlowBox\particles\Square01</LocalDebuggerCommandArguments>
+    <LocalDebuggerCommandArgumentsHistory>-p 480 D:\Courses\SSParticles\RealFlowBox\particles\Square01|</LocalDebuggerCommandArgumentsHistory>
   </PropertyGroup>
 </Project>
