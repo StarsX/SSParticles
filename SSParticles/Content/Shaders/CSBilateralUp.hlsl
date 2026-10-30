@@ -15,6 +15,7 @@
 //--------------------------------------------------------------------------------------
 // Constant buffer
 //--------------------------------------------------------------------------------------
+XUSG_VK_BINDING(0, XUSG_VK_SPACE_CBV)
 cbuffer cbPerFrame	: register (b0)
 {
 	matrix	g_worldView;
@@ -23,6 +24,7 @@ cbuffer cbPerFrame	: register (b0)
 	matrix	g_projI;
 };
 
+XUSG_VK_BINDING(1, XUSG_VK_SPACE_CBV)
 cbuffer cbPerPass	: register (b1)
 {
 	uint g_level;
@@ -31,11 +33,16 @@ cbuffer cbPerPass	: register (b1)
 //--------------------------------------------------------------------------------------
 // Textures
 //--------------------------------------------------------------------------------------
+XUSG_VK_BINDING(0, XUSG_VK_SPACE_UAV)
 RWTexture2D<float> g_rwDst;
 
+XUSG_VK_BINDING(0, XUSG_VK_SPACE_SRV)
 Texture2D<float2> g_txDepthCoarser	: register (t0);
+XUSG_VK_BINDING(1, XUSG_VK_SPACE_SRV)
 Texture2D<float2> g_txDepthCoarserE	: register (t1);
+XUSG_VK_BINDING(2, XUSG_VK_SPACE_SRV)
 Texture2D<float2> g_txDepth			: register (t2);
+XUSG_VK_BINDING(3, XUSG_VK_SPACE_SRV)
 Texture2D<float> g_txDepth0			: register (t3);
 
 //--------------------------------------------------------------------------------------
@@ -71,8 +78,8 @@ float MipGaussianBlendWeightCoarse(uint level, int radius)
 	// Gaussian-approximating Haar coefficients (weights of box filters)
 	//const float r = pow(4.0, level);
 	//const float r = pow(2.0, level * 2.0);
-	//const float r = 1 << (level * 2);
-	const float r = 1 << (level << 1);
+	//const float r = 1u << (level * 2);
+	const float r = 1u << (level << 1);
 
 	return exp(-3.0 / (2.0 * PI) * r / sigma_sq);
 }

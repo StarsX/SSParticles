@@ -182,47 +182,53 @@ uint32_t Renderer::GetParticleCount() const
 
 bool Renderer::createShaders()
 {
+	const auto vulkan = Device::GetApi() == API::VULKAN;
+	const auto shaderFile = [vulkan](const wchar_t* name)
+	{
+		return wstring(name) + (vulkan ? L".spv" : L".cso");
+	};
+
 	auto vsIndex = 0u;
 	auto psIndex = 0u;
 	auto csIndex = 0u;
 
-	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::VS, vsIndex, L"VSParticle.cso"), false);
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::VS, vsIndex, shaderFile(L"VSParticle").c_str()), false);
 	m_shaders[VS_PARTICLE] = m_shaderLib->GetShader(Shader::Stage::VS, vsIndex++);
 
-	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::VS, vsIndex, L"VSScreenQuad.cso"), false);
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::VS, vsIndex, shaderFile(L"VSScreenQuad").c_str()), false);
 	m_shaders[VS_SCREEN_QUAD] = m_shaderLib->GetShader(Shader::Stage::VS, vsIndex++);
 
-	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::PS, psIndex, L"PSSphere.cso"), false);
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::PS, psIndex, shaderFile(L"PSSphere").c_str()), false);
 	m_shaders[PS_SPHERE] = m_shaderLib->GetShader(Shader::Stage::PS, psIndex++);
 
-	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::PS, psIndex, L"PSThickness.cso"), false);
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::PS, psIndex, shaderFile(L"PSThickness").c_str()), false);
 	m_shaders[PS_THICKNESS] = m_shaderLib->GetShader(Shader::Stage::PS, psIndex++);
 
-	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::PS, psIndex, L"PSVisualize.cso"), false);
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::PS, psIndex, shaderFile(L"PSVisualize").c_str()), false);
 	m_shaders[PS_VISUALIZE] = m_shaderLib->GetShader(Shader::Stage::PS, psIndex++);
 
-	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::PS, psIndex, L"PSShade.cso"), false);
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::PS, psIndex, shaderFile(L"PSShade").c_str()), false);
 	m_shaders[PS_SHADE] = m_shaderLib->GetShader(Shader::Stage::PS, psIndex++);
 
-	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::PS, psIndex, L"PSEnvironment.cso"), false);
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::PS, psIndex, shaderFile(L"PSEnvironment").c_str()), false);
 	m_shaders[PS_ENVIRONMENT] = m_shaderLib->GetShader(Shader::Stage::PS, psIndex++);
 
-	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, L"CSArrangeInput.cso"), false);
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, shaderFile(L"CSArrangeInput").c_str()), false);
 	m_shaders[CS_ARRANGE_INPUT] = m_shaderLib->GetShader(Shader::Stage::CS, csIndex++);
 
-	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, L"CSBilateralGT.cso"), false);
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, shaderFile(L"CSBilateralGT").c_str()), false);
 	m_shaders[CS_BILATERAL_GT] = m_shaderLib->GetShader(Shader::Stage::CS, csIndex++);
 
-	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, L"CSBilateralH.cso"), false);
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, shaderFile(L"CSBilateralH").c_str()), false);
 	m_shaders[CS_BILATERAL_H] = m_shaderLib->GetShader(Shader::Stage::CS, csIndex++);
 
-	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, L"CSBilateralV.cso"), false);
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, shaderFile(L"CSBilateralV").c_str()), false);
 	m_shaders[CS_BILATERAL_V] = m_shaderLib->GetShader(Shader::Stage::CS, csIndex++);
 
-	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, L"CSBilateralDown.cso"), false);
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, shaderFile(L"CSBilateralDown").c_str()), false);
 	m_shaders[CS_BILATERAL_DOWN] = m_shaderLib->GetShader(Shader::Stage::CS, csIndex++);
 
-	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, L"CSBilateralUp.cso"), false);
+	XUSG_N_RETURN(m_shaderLib->CreateShader(Shader::Stage::CS, csIndex, shaderFile(L"CSBilateralUp").c_str()), false);
 	m_shaders[CS_BILATERAL_UP] = m_shaderLib->GetShader(Shader::Stage::CS, csIndex++);
 
 	return true;
@@ -230,6 +236,9 @@ bool Renderer::createShaders()
 
 void Renderer::renderSphereDepth(EZ::CommandList* pCommandList, uint8_t frameIndex)
 {
+	const auto vulkan = Device::GetApi() == API::VULKAN;
+	const auto srvSpace = vulkan ? 1u : 0u;
+
 	// Set pipeline state
 	pCommandList->SetGraphicsShader(Shader::Stage::VS, m_shaders[VS_PARTICLE]);
 	pCommandList->SetGraphicsShader(Shader::Stage::PS, m_shaders[PS_SPHERE]);
@@ -258,13 +267,16 @@ void Renderer::renderSphereDepth(EZ::CommandList* pCommandList, uint8_t frameInd
 
 	// Set SRV
 	const auto srv = EZ::GetSRV(m_particleFrames[m_particleFrameIdx].get());
-	pCommandList->SetResources(Shader::Stage::VS, DescriptorType::SRV, 0, 1, &srv);
+	pCommandList->SetResources(Shader::Stage::VS, DescriptorType::SRV, 0, 1, &srv, srvSpace);
 
 	pCommandList->Draw(4, m_numParticles[m_particleFrameIdx], 0, 0);
 }
 
 void Renderer::renderThickness(EZ::CommandList* pCommandList, uint8_t frameIndex)
 {
+	const auto vulkan = Device::GetApi() == API::VULKAN;
+	const auto srvSpace = vulkan ? 1u : 0u;
+
 	// Set pipeline state
 	pCommandList->SetGraphicsShader(Shader::Stage::VS, m_shaders[VS_PARTICLE]);
 	pCommandList->SetGraphicsShader(Shader::Stage::PS, m_shaders[PS_THICKNESS]);
@@ -295,7 +307,7 @@ void Renderer::renderThickness(EZ::CommandList* pCommandList, uint8_t frameIndex
 
 	// Set SRV
 	const auto srv = EZ::GetSRV(m_particleFrames[m_particleFrameIdx].get());
-	pCommandList->SetResources(Shader::Stage::VS, DescriptorType::SRV, 0, 1, &srv);
+	pCommandList->SetResources(Shader::Stage::VS, DescriptorType::SRV, 0, 1, &srv, srvSpace);
 
 	pCommandList->Draw(4, m_numParticles[m_particleFrameIdx], 0, 0);
 
@@ -304,12 +316,16 @@ void Renderer::renderThickness(EZ::CommandList* pCommandList, uint8_t frameIndex
 
 void Renderer::bilateralGT(EZ::CommandList* pCommandList, uint8_t frameIndex)
 {
+	const auto vulkan = Device::GetApi() == API::VULKAN;
+	const auto srvSpace = vulkan ? 1u : 0u;
+	const auto uavSpace = vulkan ? 2u : 0u;
+
 	// Set pipeline state
 	pCommandList->SetComputeShader(m_shaders[CS_BILATERAL_GT]);
 
 	// Set UAV
 	const auto uav = EZ::GetUAV(m_filtered.get());
-	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav);
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav, uavSpace);
 
 	// Set CBV
 	const auto cbv = EZ::GetCBV(m_cbPerFrame.get(), frameIndex);
@@ -317,7 +333,7 @@ void Renderer::bilateralGT(EZ::CommandList* pCommandList, uint8_t frameIndex)
 
 	// Set SRV
 	const auto srv = EZ::GetSRV(m_depth.get());
-	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, 1, &srv);
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, 1, &srv, srvSpace);
 
 	// Dispatch grid
 	pCommandList->Dispatch(XUSG_DIV_UP(m_viewport.x, 8), XUSG_DIV_UP(m_viewport.y, 8), 1);
@@ -325,12 +341,16 @@ void Renderer::bilateralGT(EZ::CommandList* pCommandList, uint8_t frameIndex)
 
 void Renderer::bilateralH(EZ::CommandList* pCommandList, uint8_t frameIndex)
 {
+	const auto vulkan = Device::GetApi() == API::VULKAN;
+	const auto srvSpace = vulkan ? 1u : 0u;
+	const auto uavSpace = vulkan ? 2u : 0u;
+
 	// Set pipeline state
 	pCommandList->SetComputeShader(m_shaders[CS_BILATERAL_H]);
 
 	// Set UAV
 	const auto uav = EZ::GetUAV(m_scratch.get());
-	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav);
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav, uavSpace);
 
 	// Set CBV
 	const auto cbv = EZ::GetCBV(m_cbPerFrame.get(), frameIndex);
@@ -338,7 +358,7 @@ void Renderer::bilateralH(EZ::CommandList* pCommandList, uint8_t frameIndex)
 
 	// Set SRV
 	const auto srv = EZ::GetSRV(m_depth.get());
-	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, 1, &srv);
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, 1, &srv, srvSpace);
 
 	// Dispatch grid
 	pCommandList->Dispatch(XUSG_DIV_UP(m_viewport.x, 8), XUSG_DIV_UP(m_viewport.y, 8), 1);
@@ -346,12 +366,16 @@ void Renderer::bilateralH(EZ::CommandList* pCommandList, uint8_t frameIndex)
 
 void Renderer::bilateralV(EZ::CommandList* pCommandList, uint8_t frameIndex)
 {
+	const auto vulkan = Device::GetApi() == API::VULKAN;
+	const auto srvSpace = vulkan ? 1u : 0u;
+	const auto uavSpace = vulkan ? 2u : 0u;
+
 	// Set pipeline state
 	pCommandList->SetComputeShader(m_shaders[CS_BILATERAL_V]);
 
 	// Set UAV
 	const auto uav = EZ::GetUAV(m_filtered.get());
-	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav);
+	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav, uavSpace);
 
 	// Set CBV
 	const auto cbv = EZ::GetCBV(m_cbPerFrame.get(), frameIndex);
@@ -364,7 +388,7 @@ void Renderer::bilateralV(EZ::CommandList* pCommandList, uint8_t frameIndex)
 		EZ::GetSRV(m_scratch.get())
 	};
 	pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0,
-		static_cast<uint32_t>(size(srvs)), srvs);
+		static_cast<uint32_t>(size(srvs)), srvs, srvSpace);
 
 	// Dispatch grid
 	pCommandList->Dispatch(XUSG_DIV_UP(m_viewport.x, 8), XUSG_DIV_UP(m_viewport.y, 8), 1);
@@ -372,6 +396,10 @@ void Renderer::bilateralV(EZ::CommandList* pCommandList, uint8_t frameIndex)
 
 void Renderer::bilateralDown(EZ::CommandList* pCommandList)
 {
+	const auto vulkan = Device::GetApi() == API::VULKAN;
+	const auto srvSpace = vulkan ? 1u : 0u;
+	const auto uavSpace = vulkan ? 2u : 0u;
+
 	// Generate mipmaps
 	// Set pipeline state
 	pCommandList->SetComputeShader(m_shaders[CS_BILATERAL_DOWN]);
@@ -384,11 +412,11 @@ void Renderer::bilateralDown(EZ::CommandList* pCommandList)
 	{
 		// Set UAV
 		const auto uav = EZ::GetUAV(m_scratch.get(), i);
-		pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav);
+		pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav, uavSpace);
 
 		// Set SRV
 		const auto srv = EZ::GetSRV(m_scratch.get(), i - 1, true);
-		pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, 1, &srv);
+		pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, 1, &srv, srvSpace);
 
 		// Dispatch grid
 		const auto threadsX = (max)(m_viewport.x >> i, 1u);
@@ -399,6 +427,10 @@ void Renderer::bilateralDown(EZ::CommandList* pCommandList)
 
 void Renderer::bilateralUp(EZ::CommandList* pCommandList, uint8_t frameIndex)
 {
+	const auto vulkan = Device::GetApi() == API::VULKAN;
+	const auto srvSpace = vulkan ? 1u : 0u;
+	const auto uavSpace = vulkan ? 2u : 0u;
+
 	// Up sampling
 	// Set pipeline state
 	pCommandList->SetComputeShader(m_shaders[CS_BILATERAL_UP]);
@@ -419,7 +451,7 @@ void Renderer::bilateralUp(EZ::CommandList* pCommandList, uint8_t frameIndex)
 
 		// Set UAV
 		const auto uav = EZ::GetUAV(m_filtered.get(), level);
-		pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav);
+		pCommandList->SetResources(Shader::Stage::CS, DescriptorType::UAV, 0, 1, &uav, uavSpace);
 
 		// Set constant
 		pCommandList->SetCompute32BitConstant(level);
@@ -432,7 +464,7 @@ void Renderer::bilateralUp(EZ::CommandList* pCommandList, uint8_t frameIndex)
 			EZ::GetSRV(m_scratch.get(), level, true),
 			EZ::GetSRV(m_scratch.get(), 0, true)
 		};
-		pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, static_cast<uint32_t>(size(srvs)), srvs);
+		pCommandList->SetResources(Shader::Stage::CS, DescriptorType::SRV, 0, static_cast<uint32_t>(size(srvs)), srvs, srvSpace);
 
 		// Dispatch grid
 		const auto threadsX = (max)(m_viewport.x >> level, 1u);
@@ -443,6 +475,9 @@ void Renderer::bilateralUp(EZ::CommandList* pCommandList, uint8_t frameIndex)
 
 void Renderer::shade(EZ::CommandList* pCommandList, uint8_t frameIndex, RenderTarget* pOutView)
 {
+	const auto vulkan = Device::GetApi() == API::VULKAN;
+	const auto srvSpace = vulkan ? 1u : 0u;
+
 	// Set pipeline state
 	pCommandList->SetGraphicsShader(Shader::Stage::VS, m_shaders[VS_SCREEN_QUAD]);
 	pCommandList->SetGraphicsShader(Shader::Stage::PS, m_shaders[PS_SHADE]);
@@ -473,7 +508,7 @@ void Renderer::shade(EZ::CommandList* pCommandList, uint8_t frameIndex, RenderTa
 		EZ::GetSRV(m_radiance.get())
 	};
 	pCommandList->SetResources(Shader::Stage::PS, DescriptorType::SRV, 0,
-		static_cast<uint32_t>(size(srvs)), srvs);
+		static_cast<uint32_t>(size(srvs)), srvs, srvSpace);
 
 	// Set sampler
 	const auto sampler = SamplerPreset::ANISOTROPIC_WRAP;
@@ -485,6 +520,9 @@ void Renderer::shade(EZ::CommandList* pCommandList, uint8_t frameIndex, RenderTa
 void Renderer::visualize(EZ::CommandList* pCommandList, uint8_t frameIndex,
 	RenderTarget* pOutView, bool needClear)
 {
+	const auto vulkan = Device::GetApi() == API::VULKAN;
+	const auto srvSpace = vulkan ? 1u : 0u;
+
 	// Set pipeline state
 	pCommandList->SetGraphicsShader(Shader::Stage::VS, m_shaders[VS_SCREEN_QUAD]);
 	pCommandList->SetGraphicsShader(Shader::Stage::PS, m_shaders[PS_VISUALIZE]);
@@ -513,7 +551,7 @@ void Renderer::visualize(EZ::CommandList* pCommandList, uint8_t frameIndex,
 
 	// Set SRV
 	const auto srv = EZ::GetSRV(m_filtered.get());
-	pCommandList->SetResources(Shader::Stage::PS, DescriptorType::SRV, 0, 1, &srv);
+	pCommandList->SetResources(Shader::Stage::PS, DescriptorType::SRV, 0, 1, &srv, srvSpace);
 
 	// Set sampler
 	//const auto sampler = SamplerPreset::ANISOTROPIC_WRAP;
@@ -524,6 +562,9 @@ void Renderer::visualize(EZ::CommandList* pCommandList, uint8_t frameIndex,
 
 void Renderer::environment(EZ::CommandList* pCommandList, uint8_t frameIndex, RenderTarget* pOutView)
 {
+	const auto vulkan = Device::GetApi() == API::VULKAN;
+	const auto srvSpace = vulkan ? 1u : 0u;
+
 	// Set pipeline state
 	pCommandList->SetGraphicsShader(Shader::Stage::VS, m_shaders[VS_SCREEN_QUAD]);
 	pCommandList->SetGraphicsShader(Shader::Stage::PS, m_shaders[PS_ENVIRONMENT]);
@@ -544,7 +585,7 @@ void Renderer::environment(EZ::CommandList* pCommandList, uint8_t frameIndex, Re
 		EZ::GetSRV(m_radiance.get())
 	};
 	pCommandList->SetResources(Shader::Stage::PS, DescriptorType::SRV, 0,
-		static_cast<uint32_t>(size(srvs)), srvs);
+		static_cast<uint32_t>(size(srvs)), srvs, srvSpace);
 
 	// Set sampler
 	const auto sampler = SamplerPreset::ANISOTROPIC_WRAP;

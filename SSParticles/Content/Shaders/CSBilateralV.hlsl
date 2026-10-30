@@ -7,6 +7,7 @@
 //--------------------------------------------------------------------------------------
 // Constant buffer
 //--------------------------------------------------------------------------------------
+XUSG_VK_BINDING(0, XUSG_VK_SPACE_CBV)
 cbuffer cbPerFrame
 {
 	matrix	g_worldView;
@@ -18,9 +19,12 @@ cbuffer cbPerFrame
 //--------------------------------------------------------------------------------------
 // Textures
 //--------------------------------------------------------------------------------------
+XUSG_VK_BINDING(0, XUSG_VK_SPACE_UAV)
 RWTexture2D<float> g_rwDepth;
 
+XUSG_VK_BINDING(0, XUSG_VK_SPACE_SRV)
 Texture2D<float> g_txDepth;
+XUSG_VK_BINDING(1, XUSG_VK_SPACE_SRV)
 Texture2D<float> g_txDepthH;
 
 [numthreads(8, 8, 1)]

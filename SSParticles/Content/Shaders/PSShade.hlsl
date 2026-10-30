@@ -7,9 +7,12 @@
 //--------------------------------------------------------------------------------------
 // Textures
 //--------------------------------------------------------------------------------------
+XUSG_VK_BINDING(1, XUSG_VK_SPACE_SRV)
 Texture2D<float> g_txThickness;
+XUSG_VK_BINDING(2, XUSG_VK_SPACE_SRV)
 TextureCube<float3> g_txEnv;
 
+XUSG_VK_BINDING(0, XUSG_VK_SPACE_SAMPLER)
 SamplerState g_sampler;
 
 float4 main(PSIn input) : SV_TARGET

@@ -14,7 +14,7 @@
 _Use_decl_annotations_
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int nCmdShow)
 {
-	SSParticles ssParticles(1280, 720, L"DirectX 12 Screen-Space Particle Rendering");
+	SSParticles ssParticles(1280, 720, L"Screen-Space Particle Rendering");
 
 	return Win32Application::Run(&ssParticles, hInstance, nCmdShow);
 }

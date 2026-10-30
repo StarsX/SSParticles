@@ -61,73 +61,94 @@ void SSParticles::OnInit()
 // Load the rendering pipeline dependencies.
 void SSParticles::LoadPipeline()
 {
-	auto dxgiFactoryFlags = 0u;
+	if (Device::GetApi() == API::VULKAN)
+	{
+		m_device = Device::MakeUnique();
+		if (SUCCEEDED(m_device->Create(nullptr, 0, L"VulkanDevice"))) m_title += L" (Vulkan)";
+		else
+		{
+			Device::UnlockApi();
+			Device::SetApi(API::DIRECTX_12);
+		}
+	}
+
+	if (Device::GetApi() != API::VULKAN)
+	{
+		auto dxgiFactoryFlags = 0u;
 
 #if defined(_DEBUG)
-	// Enable the debug layer (requires the Graphics Tools "optional feature").
-	// NOTE: Enabling the debug layer after device creation will invalidate the active device.
-	{
-		com_ptr<ID3D12Debug1> debugController;
-		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
+		// Enable the debug layer (requires the Graphics Tools "optional feature").
+		// NOTE: Enabling the debug layer after device creation will invalidate the active device.
 		{
-			debugController->EnableDebugLayer();
-			//debugController->SetEnableGPUBasedValidation(TRUE);
+			com_ptr<ID3D12Debug1> debugController;
+			if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
+			{
+				debugController->EnableDebugLayer();
+				//debugController->SetEnableGPUBasedValidation(TRUE);
 
-			// Enable additional debug layers.
-			dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+				// Enable additional debug layers.
+				dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+			}
 		}
-	}
 #endif
 
-	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_factory)));
+		ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_factory)));
 
-	DXGI_ADAPTER_DESC1 dxgiAdapterDesc;
-	com_ptr<IDXGIAdapter1> dxgiAdapter;
-	const auto useUMA = m_deviceType == DEVICE_UMA;
-	const auto useWARP = m_deviceType == DEVICE_WARP;
-	auto checkUMA = true, checkWARP = true;
-	auto hr = DXGI_ERROR_NOT_FOUND;
-	for (uint8_t n = 0; n < 3; ++n)
-	{
-		if (FAILED(hr)) hr = DXGI_ERROR_UNSUPPORTED;
-		for (auto i = 0u; hr == DXGI_ERROR_UNSUPPORTED; ++i)
+		DXGI_ADAPTER_DESC1 dxgiAdapterDesc;
+		com_ptr<IDXGIAdapter1> dxgiAdapter;
+		const auto useUMA = m_deviceType == DEVICE_UMA;
+		const auto useWARP = m_deviceType == DEVICE_WARP;
+		auto checkUMA = true, checkWARP = true;
+		auto hr = DXGI_ERROR_NOT_FOUND;
+		for (uint8_t n = 0; n < 3; ++n)
 		{
-			dxgiAdapter = nullptr;
-			hr = m_factory->EnumAdapters1(i, &dxgiAdapter);
-
-			if (SUCCEEDED(hr) && dxgiAdapter)
+			if (FAILED(hr)) hr = DXGI_ERROR_UNSUPPORTED;
+			for (auto i = 0u; hr == DXGI_ERROR_UNSUPPORTED; ++i)
 			{
-				dxgiAdapter->GetDesc1(&dxgiAdapterDesc);
-				if (checkWARP) hr = dxgiAdapterDesc.VendorId == 0x1414 && dxgiAdapterDesc.DeviceId == 0x8c ?
-					(useWARP ? hr : DXGI_ERROR_UNSUPPORTED) : (useWARP ? DXGI_ERROR_UNSUPPORTED : hr);
-			}
+				dxgiAdapter = nullptr;
+				hr = m_factory->EnumAdapters1(i, &dxgiAdapter);
 
-			if (SUCCEEDED(hr))
-			{
-				m_device = Device::MakeUnique();
-				if (SUCCEEDED(m_device->Create(dxgiAdapter.get(), D3D_FEATURE_LEVEL_11_0)) && checkUMA)
+				if (SUCCEEDED(hr) && dxgiAdapter)
 				{
-					D3D12_FEATURE_DATA_ARCHITECTURE feature = {};
-					const auto pDevice = static_cast<ID3D12Device*>(m_device->GetNativeHandle());
-					if (SUCCEEDED(pDevice->CheckFeatureSupport(D3D12_FEATURE_ARCHITECTURE, &feature, sizeof(feature))))
-						hr = feature.UMA ? (useUMA ? hr : DXGI_ERROR_UNSUPPORTED) : (useUMA ? DXGI_ERROR_UNSUPPORTED : hr);
+					dxgiAdapter->GetDesc1(&dxgiAdapterDesc);
+					if (checkWARP) hr = dxgiAdapterDesc.VendorId == 0x1414 && dxgiAdapterDesc.DeviceId == 0x8c ?
+						(useWARP ? hr : DXGI_ERROR_UNSUPPORTED) : (useWARP ? DXGI_ERROR_UNSUPPORTED : hr);
+				}
+
+				if (SUCCEEDED(hr))
+				{
+					m_device = Device::MakeUnique();
+					if (SUCCEEDED(m_device->Create(dxgiAdapter.get(), D3D_FEATURE_LEVEL_11_0)) && checkUMA)
+					{
+						D3D12_FEATURE_DATA_ARCHITECTURE feature = {};
+						const auto pDevice = static_cast<ID3D12Device*>(m_device->GetNativeHandle());
+						if (SUCCEEDED(pDevice->CheckFeatureSupport(D3D12_FEATURE_ARCHITECTURE, &feature, sizeof(feature))))
+							hr = feature.UMA ? (useUMA ? hr : DXGI_ERROR_UNSUPPORTED) : (useUMA ? DXGI_ERROR_UNSUPPORTED : hr);
+					}
 				}
 			}
+
+			checkUMA = false;
+			if (n) checkWARP = false;
 		}
 
-		checkUMA = false;
-		if (n) checkWARP = false;
+		m_title += L" (DirectX 12)";
+		if (dxgiAdapterDesc.VendorId == 0x1414 && dxgiAdapterDesc.DeviceId == 0x8c) m_title += L" (WARP)";
+		else if (dxgiAdapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) m_title += L" (Software)";
+		//else m_title += wstring(L" - ") + dxgiAdapterDesc.Description;
+		ThrowIfFailed(hr);
 	}
 
-	if (dxgiAdapterDesc.VendorId == 0x1414 && dxgiAdapterDesc.DeviceId == 0x8c) m_title += L" (WARP)";
-	else if (dxgiAdapterDesc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) m_title += L" (Software)";
-	//else m_title += wstring(L" - ") + dxgiAdapterDesc.Description;
-	ThrowIfFailed(hr);
+	SetWindowText(Win32Application::GetHwnd(), m_title.c_str());
 
 	// Create the command queue.
 	m_commandQueue = CommandQueue::MakeUnique();
 	XUSG_N_RETURN(m_commandQueue->Create(m_device.get(), CommandListType::DIRECT, CommandQueueFlag::DISABLE_GPU_TIMEOUT,
 		0, 0, L"CommandQueue"), ThrowIfFailed(E_FAIL));
+
+	// Vulkan swapchain creation sends messages to this window. The window has to
+	// be visible first, or the driver blocks the UI thread forever.
+	if (Device::GetApi() == API::VULKAN) ShowWindow(Win32Application::GetHwnd(), SW_SHOW);
 
 	// Create the swap chain.
 	CreateSwapchain();
@@ -219,7 +240,7 @@ void SSParticles::CreateSwapchain()
 		FrameCount, m_width, m_height, g_backBufferFormat, SwapChainFlag::ALLOW_TEARING), ThrowIfFailed(E_FAIL));
 
 	// This class does not support exclusive full-screen mode and prevents DXGI from responding to the ALT+ENTER shortcut.
-	ThrowIfFailed(m_factory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
+	if (m_factory) ThrowIfFailed(m_factory->MakeWindowAssociation(Win32Application::GetHwnd(), DXGI_MWA_NO_ALT_ENTER));
 }
 
 void SSParticles::CreateResources()
@@ -238,6 +259,12 @@ void SSParticles::CreateResources()
 // Update frame-based values.
 void SSParticles::OnUpdate()
 {
+	// ShowWindow during startup arrives before the swap chain exists.
+	if (!m_swapChain) return;
+
+	if (Device::GetApi() == API::VULKAN)
+		m_frameIndex = m_swapChain->GetCurrentBackBufferIndex();
+
 	// Timer
 	static auto time = 0.0, pauseTime = 0.0;
 
@@ -259,6 +286,9 @@ void SSParticles::OnUpdate()
 // Render the scene.
 void SSParticles::OnRender()
 {
+	// ShowWindow during startup arrives before the swap chain exists.
+	if (!m_swapChain) return;
+
 	// Record all the commands we need to render the scene into the command list.
 	PopulateCommandList();
 
@@ -282,6 +312,9 @@ void SSParticles::OnDestroy()
 
 void SSParticles::OnWindowSizeChanged(int width, int height)
 {
+	// ShowWindow during Vulkan startup arrives before these objects exist.
+	if (!m_swapChain || !m_fence || !m_commandListEZ || !m_renderer) return;
+
 	if (height > 1080) return;
 
 	if (!Win32Application::GetHwnd())
@@ -460,6 +493,7 @@ void SSParticles::ParseCommandLineArgs(wchar_t* argv[], int argc)
 	{
 		if (isArgMatched(i, L"warp")) m_deviceType = DEVICE_WARP;
 		else if (isArgMatched(i, L"uma")) m_deviceType = DEVICE_UMA;
+		else if (isArgMatched(i, L"vulkan") || isArgMatched(i, L"vk")) Device::SetApi(API::VULKAN);
 		else if (isArgMatched(i, L"w") || isArgMatched(i, L"width"))
 		{
 			if (hasNextArgValue(i)) i += swscanf_s(argv[i + 1], L"%u", &m_width);

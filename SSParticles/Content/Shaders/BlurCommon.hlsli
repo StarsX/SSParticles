@@ -2,6 +2,8 @@
 // Copyright (c) XU, Tianchen. All rights reserved.
 //--------------------------------------------------------------------------------------
 
+#include "XUSGVk.hlsli"
+
 #define RADIUS 24
 #define PI 3.141592654
 #define SIGMA_Z 96.0
@@ -9,6 +11,7 @@
 //--------------------------------------------------------------------------------------
 // Texture sampler
 //--------------------------------------------------------------------------------------
+XUSG_VK_BINDING(0, XUSG_VK_SPACE_SAMPLER)
 SamplerState g_sampler;
 
 float GaussianSigmaFromRadius(int radius)

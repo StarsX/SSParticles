@@ -159,6 +159,9 @@
     <None Include="Content\Shaders\BlurCommon.hlsli">
       <Filter>Shaders</Filter>
     </None>
+    <None Include="Content\Shaders\XUSGVk.hlsli">
+      <Filter>Shaders</Filter>
+    </None>
     <None Include="Content\Shaders\DepthToNormal.hlsli">
       <Filter>Shaders\Render</Filter>
     </None>
