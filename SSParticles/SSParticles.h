@@ -57,11 +57,11 @@ private:
 
 	XUSG::com_ptr<IDXGIFactory5>	m_factory;
 
+	XUSG::Device::uptr				m_device;
 	XUSG::SwapChain::uptr			m_swapChain;
 	XUSG::CommandAllocator::uptr	m_commandAllocators[FrameCount];
 	XUSG::CommandQueue::uptr		m_commandQueue;
 
-	XUSG::Device::uptr			m_device;
 	XUSG::RenderTarget::uptr	m_renderTargets[FrameCount];
 	XUSG::CommandList::uptr		m_commandList;
 	XUSG::EZ::CommandList::uptr	m_commandListEZ;

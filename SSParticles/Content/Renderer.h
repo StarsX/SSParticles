@@ -27,7 +27,7 @@ public:
 
 	bool Init(XUSG::CommandList* pCommandList, std::vector<XUSG::Resource::uptr>& uploaders,
 		const char* fileNamePrefix, int numFrames);
-	bool SetViewport(const XUSG::Device* pDevice, uint32_t width, uint32_t height);
+	bool SetViewport(XUSG::Device* pDevice, uint32_t width, uint32_t height);
 
 	void SetLightProbe(const XUSG::Texture::sptr& radiance);
 	void UpdateFrame(double time, uint8_t frameIndex, DirectX::CXMVECTOR eyePt,

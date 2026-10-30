@@ -88,7 +88,7 @@ bool Renderer::Init(CommandList* pCommandList, vector<Resource::uptr>& uploaders
 	return true;
 }
 
-bool Renderer::SetViewport(const Device* pDevice, uint32_t width, uint32_t height)
+bool Renderer::SetViewport(Device* pDevice, uint32_t width, uint32_t height)
 {
 	m_viewport = XMUINT2(width, height);
 

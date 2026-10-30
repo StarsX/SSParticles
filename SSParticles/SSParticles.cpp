@@ -108,7 +108,7 @@ void SSParticles::LoadPipeline()
 				if (SUCCEEDED(m_device->Create(dxgiAdapter.get(), D3D_FEATURE_LEVEL_11_0)) && checkUMA)
 				{
 					D3D12_FEATURE_DATA_ARCHITECTURE feature = {};
-					const auto pDevice = static_cast<ID3D12Device*>(m_device->GetHandle());
+					const auto pDevice = static_cast<ID3D12Device*>(m_device->GetNativeHandle());
 					if (SUCCEEDED(pDevice->CheckFeatureSupport(D3D12_FEATURE_ARCHITECTURE, &feature, sizeof(feature))))
 						hr = feature.UMA ? (useUMA ? hr : DXGI_ERROR_UNSUPPORTED) : (useUMA ? DXGI_ERROR_UNSUPPORTED : hr);
 				}
@@ -150,16 +150,18 @@ void SSParticles::LoadAssets()
 	// Create the command list.
 	m_commandList = CommandList::MakeUnique();
 	const auto pCommandList = m_commandList.get();
+	CommandAllocator* pAllocators[FrameCount];
+	for (uint8_t n = 0; n < FrameCount; ++n) pAllocators[n] = m_commandAllocators[n].get();
 	XUSG_N_RETURN(pCommandList->Create(m_device.get(), 0, CommandListType::DIRECT,
-		m_commandAllocators[m_frameIndex].get(), nullptr), ThrowIfFailed(E_FAIL));
+		FrameCount, pAllocators, nullptr), ThrowIfFailed(E_FAIL));
 
 	uint32_t max32BitConstants[Shader::Stage::NUM_STAGE] = {};
 	uint32_t constantSlots[Shader::Stage::NUM_STAGE] = {};
 	max32BitConstants[Shader::Stage::CS] = 1;
 	constantSlots[Shader::Stage::CS] = 1;
 	m_commandListEZ = EZ::CommandList::MakeUnique();
-	XUSG_N_RETURN(m_commandListEZ->Create(pCommandList, 4, 1024,
-		nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
+	XUSG_N_RETURN(m_commandListEZ->Create(pCommandList, 4, 1024, nullptr, nullptr,
+		nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr,
 		max32BitConstants, constantSlots), ThrowIfFailed(E_FAIL));
 
 	vector<Resource::uptr> uploaders(0);	
@@ -213,7 +215,7 @@ void SSParticles::CreateSwapchain()
 {
 	// Describe and create the swap chain.
 	m_swapChain = SwapChain::MakeUnique();
-	XUSG_N_RETURN(m_swapChain->Create(m_factory.get(), Win32Application::GetHwnd(), m_commandQueue->GetHandle(),
+	XUSG_N_RETURN(m_swapChain->Create(m_factory.get(), Win32Application::GetHwnd(), m_commandQueue->GetNativeHandle(),
 		FrameCount, m_width, m_height, g_backBufferFormat, SwapChainFlag::ALLOW_TEARING), ThrowIfFailed(E_FAIL));
 
 	// This class does not support exclusive full-screen mode and prevents DXGI from responding to the ALT+ENTER shortcut.
@@ -488,14 +490,13 @@ void SSParticles::PopulateCommandList()
 	// Command list allocators can only be reset when the associated 
 	// command lists have finished execution on the GPU; apps should use 
 	// fences to determine GPU execution progress.
-	const auto pCommandAllocator = m_commandAllocators[m_frameIndex].get();
-	XUSG_N_RETURN(pCommandAllocator->Reset(), ThrowIfFailed(E_FAIL));
+	XUSG_N_RETURN(m_commandAllocators[m_frameIndex]->Reset(), ThrowIfFailed(E_FAIL));
 
 	// However, when ExecuteCommandList() is called on a particular command 
 	// list, that command list can then be reset at any time and must be before 
 	// re-recording.
 	const auto pCommandList = m_commandListEZ.get();
-	XUSG_N_RETURN(pCommandList->Reset(pCommandAllocator, nullptr), ThrowIfFailed(E_FAIL));
+	XUSG_N_RETURN(pCommandList->Reset(m_frameIndex, nullptr), ThrowIfFailed(E_FAIL));
 
 	// Record commands.
 	const auto pRenderTarget = m_renderTargets[m_frameIndex].get();
